@@ -45,15 +45,38 @@
 #include "tnn/utils/string_utils_inner.h"
 
 int main(int argc, char* argv[]) {
-    if (!TNN_NS::test::ParseAndCheckCommandLine(argc, argv))
+    using namespace TNN_NS;
+    using namespace TNN_NS::test;
+    if (!test::ParseAndCheckCommandLine(argc, argv))
         return -1;
 
-    int test_thread_num = TNN_NS::FLAGS_tt;
+    ModelConfig model_config     = GetModelConfig();
+    NetworkConfig network_config = GetNetworkConfig();
+    InputShapesMap input_shape = GetInputShapesMap();
+
+    TNN net;
+    Status ret = net.Init(model_config);
+    model_config.params.clear();
+    auto instance = net.CreateInst(network_config, ret, input_shape);
+    if (!CheckResult("create instance", ret)) {
+        return ret;
+    }
+
+    auto instance2 = net.CreateInst(network_config, ret, input_shape);
+    if (!CheckResult("create instance", ret)) {
+        return ret;
+    }
+
+    int test_thread_num = 2;
 
     std::thread** threads = new std::thread*[test_thread_num];
     for (int i = 0; i < test_thread_num; ++i)
     {
-        threads[i] = new std::thread(TNN_NS::test::Run);
+	if(i == 0) {
+            threads[i] = new std::thread(TNN_NS::test::Run, instance);
+	} else {
+            threads[i] = new std::thread(TNN_NS::test::Run, instance2);
+	}
     }
     for (int i = 0; i < test_thread_num; ++i) {
         threads[i]->join();
@@ -70,7 +93,7 @@ namespace TNN_NS {
 
 namespace test {
 
-    int Run() {
+    int Run(std::shared_ptr<Instance> instance) {
 #if (DUMP_INPUT_BLOB || DUMP_OUTPUT_BLOB)
         g_tnn_dump_directory = FLAGS_op;
 #endif
@@ -80,21 +103,10 @@ namespace test {
         // only works when -dl flags were set. benchmark script not set -dl flags
         SetCpuAffinity();
 
-        ModelConfig model_config     = GetModelConfig();
-        NetworkConfig network_config = GetNetworkConfig();
-
-        InputShapesMap input_shape = GetInputShapesMap();
-
         srand(102);
 
-        TNN net;
-        Status ret = net.Init(model_config);
-        model_config.params.clear();
-        if (CheckResult("init tnn", ret)) {
-            auto instance = net.CreateInst(network_config, ret, input_shape);
-            if (!CheckResult("create instance", ret)) {
-                return ret;
-            }
+	Status ret = TNN_OK;
+
             instance->SetCpuNumThreads(std::max(FLAGS_th, 1));
 
             //get blob
@@ -194,9 +206,6 @@ namespace test {
             timer.Print();
 
             return 0;
-        } else {
-            return ret;
-        }
     }
 
     bool ParseAndCheckCommandLine(int argc, char* argv[]) {

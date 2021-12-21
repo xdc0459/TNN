@@ -26,7 +26,7 @@ namespace TNN_NS {
 
 namespace test {
 
-    int Run();
+    int Run(std::shared_ptr<Instance> instance);
 
     bool ParseAndCheckCommandLine(int argc, char* argv[]);
 
