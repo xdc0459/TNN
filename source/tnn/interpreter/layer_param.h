@@ -128,7 +128,7 @@ struct ConvLayerParam : public LayerParam {
     int bias            = 0;
     int activation_type = ActivationType_None;
     int fusion_type     = FusionType_None;
-
+    bool qat_mode       = false;
     PARAM_COPY(ConvLayerParam)
 };
 
@@ -702,6 +702,12 @@ struct SplitTorchLayerParam : public SplitVLayerParam {
     int split_size          = 0;
 
     PARAM_COPY(SplitTorchLayerParam)
+};
+
+struct QuantizeLayerParam : public LayerParam {
+    int64_t axis            = 0;
+
+    PARAM_COPY(QuantizeLayerParam)
 };
 
 };  // namespace TNN_NS
