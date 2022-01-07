@@ -22,6 +22,17 @@ DECLARE_TENSORRT_LAYER_BUILDER(Deconvolution, LAYER_DECONVOLUTION);
 
 ILayer* DeconvolutionTRTLayerBuilder::AddToNetwork(INetworkDefinition* network) {
     auto paramlist = dynamic_cast<ConvLayerParam*>(param_);
+    
+	nvinfer1::ITensor* weight_tensor = nullptr;
+    if (paramlist->qat_mode) {
+		auto weight_foreign_tensor = dynamic_cast<ForeignBlob*>(input_blobs_[1])->GetForeignTensor();
+		weight_tensor = std::dynamic_pointer_cast<TensorRTTensor>(weight_foreign_tensor)->GetTensor();
+		auto dims = weight_tensor->getDimensions();
+		paramlist->kernels[0] = dims.d[3];
+		paramlist->kernels[1] = dims.d[2];
+		paramlist->input_channel = dims.d[1];
+		paramlist->output_channel = dims.d[0];
+    }
 
     if (paramlist->dialations[1] != 1 || paramlist->dialations[0] != 1) {
         LOGE("TRT does not support dilated deconvolutions");
@@ -70,6 +81,10 @@ ILayer* DeconvolutionTRTLayerBuilder::AddToNetwork(INetworkDefinition* network) 
 #endif
             deconv_layer->setNbGroups(paramlist->group);
         }
+    }
+    
+	if (paramlist->qat_mode) {
+		deconv_layer->setInput(1, *weight_tensor);
     }
     last_layer = deconv_layer;
 

@@ -38,7 +38,8 @@ bool inlineCalls(Block* block) {
         if (!fun_type->function()->isGraphFunction()) {
           continue;
         }
-        inlineCalls(fun_type->function()->graph()->block());
+        if (inlineCalls(fun_type->function()->graph()->block()))
+          return true;
       } break;
       case prim::CallMethod: {
         const std::string& name = cur->s(attr::name);
@@ -47,7 +48,8 @@ bool inlineCalls(Block* block) {
           if (!function.isGraphFunction()) {
             continue;
           }
-          inlineCalls(function.graph()->block());
+          if(inlineCalls(function.graph()->block()))
+            return true;
         }
       } break;
       default: {

@@ -31,6 +31,13 @@ Status DeconvLayer::InferOutputShape(bool ignore_error) {
     Blob* input_blob             = input_blobs_[0];
     Blob* output_blob            = output_blobs_[0];
     ConvLayerParam* deconv_param = dynamic_cast<ConvLayerParam*>(param_);
+    if(deconv_param->qat_mode) {
+        auto dims = input_blobs_[1]->GetBlobDesc().dims;
+        deconv_param->kernels[0] = dims[3];
+        deconv_param->kernels[1] = dims[2];
+        deconv_param->output_channel = dims[0];
+        deconv_param->input_channel = dims[1];
+    }
     CHECK_PARAM_NULL(deconv_param);
 
     int num    = input_blob->GetBlobDesc().dims[0];

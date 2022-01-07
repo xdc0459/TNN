@@ -30,7 +30,8 @@
 
 namespace TNN_NS {
 
-#define MAX_SCRATCH_MEMORY (1<<31 - 1)
+// #define MAX_SCRATCH_MEMORY (1<<33 - 1)
+#define MAX_SCRATCH_MEMORY 4000000000
 #define TENSORRT_SERIALIZE_VERSION "v1.5"
 
 NetworkImplFactoryRegister<NetworkImplFactory<TensorRTNetwork_>>
@@ -407,7 +408,7 @@ std::unordered_map<std::string, TensorRTPluginLayerBuilder*> TensorRTNetwork_::G
 
 Status TensorRTNetwork_::InitLayers(NetStructure *net_structure, NetResource *net_resource, bool enable_const_folder) {
     Status ret = TNN_OK;
-
+    this->qat_mode =  false;
     // mark const blobs and blob data type
     auto const_blobs = net_resource->constant_map;
     for (auto layer_info : net_structure->layers) {
@@ -444,6 +445,12 @@ Status TensorRTNetwork_::InitLayers(NetStructure *net_structure, NetResource *ne
         std::vector<std::string> &input_names = layer_info->inputs;
         // get input nodes
         bool is_int8_blob = layer_info->param->quantized;
+	    std::cout<<"PengParam param->quantized"<<bool(layer_info->param->quantized)<<" "<<is_int8_blob<<std::endl;
+	    std::cout<<"PengParam param->qat_mode:"<<bool(layer_info->param->qat_mode)<<std::endl;
+		if (layer_info->param->qat_mode) {
+			this->qat_mode = true;
+			std::cout<<"PengQatSet:"<<layer_info->name<<std::endl;
+		}
 
         for (auto name : input_names) {
             auto blob = blob_manager_->GetBlob(name);
@@ -546,7 +553,7 @@ Status TensorRTNetwork_::InitWithoutCache(BlobMap &inputs, BlobMap &outputs, std
     auto m_trt_config = m_trt_builder->createBuilderConfig();
     auto profile = m_trt_builder->createOptimizationProfile();
     // TODO: design the method to set qat_mode
-    this->qat_mode = true;
+    // this->qat_mode = true;
     bool is_input_fp16 = false;
     for (auto input : inputs) {
         auto foreign_blob = dynamic_cast<ForeignBlob*>(input.second);
@@ -744,6 +751,7 @@ Status TensorRTNetwork_::InitWithoutCache(BlobMap &inputs, BlobMap &outputs, std
     if (this->int8_mode) {
         m_trt_config->setFlag(BuilderFlag::kINT8);
     }
+	std::cout<<"PengTRTMode:"<<this->qat_mode<<std::endl;
     if (this->qat_mode) {
         m_trt_config->setFlag(BuilderFlag::kINT8);
     }

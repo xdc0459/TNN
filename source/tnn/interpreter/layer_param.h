@@ -47,6 +47,7 @@ struct LayerParam {
     /**layer name*/
     std::string name;
     bool quantized = false;
+    bool qat_mode = false;
     // weight data size for ncnn param
     size_t weight_data_size = 0;
 
@@ -128,7 +129,6 @@ struct ConvLayerParam : public LayerParam {
     int bias            = 0;
     int activation_type = ActivationType_None;
     int fusion_type     = FusionType_None;
-    bool qat_mode       = false;
     PARAM_COPY(ConvLayerParam)
 };
 
