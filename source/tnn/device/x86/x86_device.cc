@@ -121,6 +121,7 @@ Context* X86Device::CreateContext(int device_id) {
 
 NetworkType X86Device::ConvertAutoNetworkType() {
 #ifdef _OPENVINO_
+    std::cout << "convert to openvino network" << std::endl;
     return NETWORK_TYPE_OPENVINO;
 #else
     return NETWORK_TYPE_DEFAULT;

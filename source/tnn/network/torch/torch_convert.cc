@@ -105,6 +105,7 @@ c10::intrusive_ptr<runtime::TNNEngine> ConvertBlockToInstance(partitioning::Segm
         // TNN_NS::ModelPacker model_packer(net_structure, net_resource);
         // Status status = model_packer.Pack(proto_path, model_path);
         instance_ptr->instance_->Init(ctx->get_interpreter(), min_inputs_shape_map, max_inputs_shape_map);
+        std::cout << "thread num : " <<  std::thread::hardware_concurrency() << std::endl;
         instance_ptr->instance_->SetCpuNumThreads(std::thread::hardware_concurrency());
         instance_ptr->is_init_ = true;
     }

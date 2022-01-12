@@ -23,6 +23,7 @@
 
 #include "tnn/network/openvino/custom_layer/custom_implementation.h"
 #include "tnn/network/openvino/utils.h"
+#include "tnn/device/x86/acc/compute/jit/utils/timer.hpp"
 
 namespace TNN_NS {
 
@@ -386,7 +387,11 @@ Status OpenVINONetwork_::SetCommandQueue(void *command_queue) {
 }
 
 Status OpenVINONetwork_::Forward() {
+    std::cout << "========================== openvino forward ========================" << std::endl;
+    NiceTimer timer;
+    timer.tick(0,0);
     infer_request_.Infer();
+    std::cout << "openvino forward" << timer.tick(1,0) << " ms" << std::endl;
 #if TNN_PROFILE
     auto perf_count = infer_request_.GetPerformanceCounts();
     for (auto iter : perf_count) {
