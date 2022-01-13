@@ -444,11 +444,8 @@ Status TensorRTNetwork_::InitLayers(NetStructure *net_structure, NetResource *ne
         std::vector<std::string> &input_names = layer_info->inputs;
         // get input nodes
         bool is_int8_blob = layer_info->param->quantized;
-	    std::cout<<"PengParam param->quantized"<<bool(layer_info->param->quantized)<<" "<<is_int8_blob<<std::endl;
-	    std::cout<<"PengParam param->qat_mode:"<<bool(layer_info->param->qat_mode)<<std::endl;
 		if (layer_info->param->qat_mode) {
-			this->qat_mode = true;
-			std::cout<<"PengQatSet:"<<layer_info->name<<std::endl;
+            this->qat_mode = true;
 		}
 
         for (auto name : input_names) {

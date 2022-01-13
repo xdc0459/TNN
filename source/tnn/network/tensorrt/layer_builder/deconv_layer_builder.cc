@@ -25,13 +25,13 @@ ILayer* DeconvolutionTRTLayerBuilder::AddToNetwork(INetworkDefinition* network) 
     
 	nvinfer1::ITensor* weight_tensor = nullptr;
     if (paramlist->qat_mode) {
-		auto weight_foreign_tensor = dynamic_cast<ForeignBlob*>(input_blobs_[1])->GetForeignTensor();
-		weight_tensor = std::dynamic_pointer_cast<TensorRTTensor>(weight_foreign_tensor)->GetTensor();
-		auto dims = weight_tensor->getDimensions();
-		paramlist->kernels[0] = dims.d[3];
-		paramlist->kernels[1] = dims.d[2];
-		paramlist->input_channel = dims.d[1];
-		paramlist->output_channel = dims.d[0];
+        auto weight_foreign_tensor = dynamic_cast<ForeignBlob*>(input_blobs_[1])->GetForeignTensor();
+        weight_tensor = std::dynamic_pointer_cast<TensorRTTensor>(weight_foreign_tensor)->GetTensor();
+        auto dims = weight_tensor->getDimensions();
+        paramlist->kernels[0] = dims.d[3];
+        paramlist->kernels[1] = dims.d[2];
+        paramlist->input_channel = dims.d[1];
+        paramlist->output_channel = dims.d[0];
     }
 
     if (paramlist->dialations[1] != 1 || paramlist->dialations[0] != 1) {
@@ -84,7 +84,7 @@ ILayer* DeconvolutionTRTLayerBuilder::AddToNetwork(INetworkDefinition* network) 
     }
     
 	if (paramlist->qat_mode) {
-		deconv_layer->setInput(1, *weight_tensor);
+        deconv_layer->setInput(1, *weight_tensor);
     }
     last_layer = deconv_layer;
 

@@ -315,7 +315,7 @@ namespace jit {
         torch::jit::EliminateRedundantGuards(graph);
         torch::jit::RemoveListMutation(graph);
         torch::jit::RemoveTensorMutation(graph);
-       torch::jit::CreateFunctionalGraphs(graph);
+        torch::jit::CreateFunctionalGraphs(graph);
         torch::jit::InlineFunctionalGraphs(graph);
         torch::jit::PeepholeOptimize(graph, false);
         torch::jit::FuseLinear(graph);
