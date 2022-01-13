@@ -304,8 +304,6 @@ namespace jit {
             propagator.propagateAttributes(graph);
             std::cout<<"Graph after AttributePropagator"<<std::endl;
             std::cout << graph->toString(false) << std::endl;
-            std::cout<<"DOT Graph:"<<std::endl;
-            std::cout<<ToDotGraph(*graph)<<std::endl;
         } else {
             std::cout<<"PengMode normal"<<std::endl;
             module = torch::jit::freeze_module(module);
@@ -338,6 +336,8 @@ namespace jit {
 //        RemoveSlice(graph->block());
 
         torch::jit::EliminateDeadCode(graph);
+        std::cout<<"DOT Graph:"<<std::endl;
+        std::cout<<ToDotGraph(*graph)<<std::endl;
     }
 }  // namespace jit
 }  // namespace torch
