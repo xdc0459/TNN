@@ -150,7 +150,6 @@ namespace test {
             Timer timer(model_name + " - " + FLAGS_dt);
 
             for (int i = 0; i < FLAGS_ic; ++i) {
-                timer.Start();
                 for(auto element : input_converters_map) {
                     auto name = element.first;
                     auto blob_converter = element.second;
@@ -162,7 +161,9 @@ namespace test {
 #if (DUMP_INPUT_BLOB || DUMP_OUTPUT_BLOB)
                 ret = instance->Forward();
 #else
-                ret = instance->ForwardAsync(nullptr);
+                timer.Start();
+                ret = instance->Forward();
+                timer.Stop();
 #endif
                 if (!CheckResult("Forward", ret)) {
                     return ret;
@@ -182,7 +183,6 @@ namespace test {
                         return ret;
                     }
                 }
-                timer.Stop();
             }
 #if TNN_PROFILE
             instance->FinishProfile(true);
