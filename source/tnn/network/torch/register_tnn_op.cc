@@ -63,8 +63,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
             max_shape = inputs_shape_map;
         }
 
-        //ModelPacker package(interpreter->GetNetStructure(), interpreter->GetNetResource());
-        //package.Pack("torch.tnnproto", "torch.tnnmodel");
+        // ModelPacker package(interpreter->GetNetStructure(), interpreter->GetNetResource());
+        // package.Pack("torch.tnnproto", "torch.tnnmodel");
         compiled_engine->instance_->Init(compiled_engine->ctx_->get_interpreter(), min_shape, max_shape);
         compiled_engine->is_init_ = true;
     }

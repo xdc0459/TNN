@@ -444,9 +444,9 @@ Status TensorRTNetwork_::InitLayers(NetStructure *net_structure, NetResource *ne
         std::vector<std::string> &input_names = layer_info->inputs;
         // get input nodes
         bool is_int8_blob = layer_info->param->quantized;
-		if (layer_info->param->qat_mode) {
+        if (layer_info->param->qat_mode) {
             this->qat_mode = true;
-		}
+        }
 
         for (auto name : input_names) {
             auto blob = blob_manager_->GetBlob(name);

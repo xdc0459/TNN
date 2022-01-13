@@ -1463,7 +1463,6 @@ public:
             auto layer_param  = std::make_shared<QuantizeLayerParam>();
             layer_param->axis = static_cast<int>(getValue<int64_t>(node->inputs()[3]));
             layer_param->qat_mode = true;
-		    std::cout<<"PengQatSet3"<<std::endl;
             layer_info->param = layer_param;
     
             net_resource->resource_map[layer_info->name] = std::shared_ptr<LayerResource>(layer_res);

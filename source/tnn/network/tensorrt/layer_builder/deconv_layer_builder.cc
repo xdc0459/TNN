@@ -23,7 +23,7 @@ DECLARE_TENSORRT_LAYER_BUILDER(Deconvolution, LAYER_DECONVOLUTION);
 ILayer* DeconvolutionTRTLayerBuilder::AddToNetwork(INetworkDefinition* network) {
     auto paramlist = dynamic_cast<ConvLayerParam*>(param_);
     
-	nvinfer1::ITensor* weight_tensor = nullptr;
+    nvinfer1::ITensor* weight_tensor = nullptr;
     if (paramlist->qat_mode) {
         auto weight_foreign_tensor = dynamic_cast<ForeignBlob*>(input_blobs_[1])->GetForeignTensor();
         weight_tensor = std::dynamic_pointer_cast<TensorRTTensor>(weight_foreign_tensor)->GetTensor();
@@ -83,7 +83,7 @@ ILayer* DeconvolutionTRTLayerBuilder::AddToNetwork(INetworkDefinition* network) 
         }
     }
     
-	if (paramlist->qat_mode) {
+    if (paramlist->qat_mode) {
         deconv_layer->setInput(1, *weight_tensor);
     }
     last_layer = deconv_layer;
