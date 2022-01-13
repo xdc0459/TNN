@@ -9,7 +9,7 @@
 //
 // Unless required by applicable law or agreed to in writing, software distributed
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #include "to_dot_graph.h"
@@ -44,15 +44,15 @@ std::string ToDotGraph(Graph& graph) {
 		    node_name.find("prim::Constant") == std::string::npos &&
 		    input_node_name.find("prim::GetAttr") == std::string::npos &&
 		    input_node_name.find("prim::Constant") == std::string::npos ) {
-		    dotgraph += "\"" + input + "\"" + " -> " + "\"" + node_name + "---" + std::to_string(node_index) + "\";\n";	
+		    dotgraph += "\"" + input + "\"" + " -> " + "\"" + node_name + "---" + std::to_string(node_index) + "\";\n";
 		}
 	}
     for (auto i: cur->outputs()) {
 	    std::string output(i->debugName());
 		if (node_name.find("prim::GetAttr") == std::string::npos &&
-		    node_name.find("prim::Constant") == std::string::npos) { 
+		    node_name.find("prim::Constant") == std::string::npos) {
 			//if ( (isDigit(output) && std::stoi(output) > 164) || false == isDigit(output))
-		    dotgraph += "\"" + node_name + "---" + std::to_string(node_index) + "\"" + " -> " + "\"" + output + "\";\n";	
+		    dotgraph += "\"" + node_name + "---" + std::to_string(node_index) + "\"" + " -> " + "\"" + output + "\";\n";
 	    }
 	}
 	node_index++;
