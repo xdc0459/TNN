@@ -183,12 +183,7 @@ ILayer* TensorRTBaseLayerBuilder::AddInt8WeightQDQLayers(nvinfer1::INetworkDefin
     float *weight_scale_data = weight_scale->force_to<float *>();
     int weight_scale_len = weight_scale->GetDataCount();
     for (int i = 0; i < weight->GetDataCount(); i++) {
-#if NV_TENSORRT_MAJOR < 8
         host_weight[i] = weight->force_to<int8_t*>()[i];
-#else
-        int scale_w_idx = i * weight_scale_len / weight->GetDataCount();
-        host_weight[i] = weight->force_to<int8_t*>()[i] * (weight_scale_data[scale_w_idx] / input_scale);
-#endif
     }
     int8Weights.values = (void*)host_weight;
     int8Weights.count = weight->GetDataCount();
@@ -276,7 +271,7 @@ ILayer* TensorRTBaseLayerBuilder::AddInt8WeightQDQLayers(nvinfer1::INetworkDefin
         Weights weight_quant_scale;
         float* weight_quant_scale_data = (float*)malloc(weight_scale_len * sizeof(float));
         for (int i = 0; i < weight_scale_len; i++) {
-            weight_quant_scale_data[i] = weight_scale_data[i] / input_scale;
+            weight_quant_scale_data[i] = 1.f;
         }
         weight_quant_scale.type = nvinfer1::DataType::kFLOAT;
         weight_quant_scale.values = (void*)weight_quant_scale_data;
@@ -284,14 +279,28 @@ ILayer* TensorRTBaseLayerBuilder::AddInt8WeightQDQLayers(nvinfer1::INetworkDefin
         Dims weight_quant_scale_dims;
         weight_quant_scale_dims.nbDims = 1;
         weight_quant_scale_dims.d[0] = weight_scale_len;
-        auto weight_quant_constant_layer = network->addConstant(weight_quant_scale_dims, weight_quant_scale);
-        weight_quant_constant_layer->setName((layer_name_ + "_weight_scale").c_str());
+        auto weight_quant_constant_layer= network->addConstant(weight_quant_scale_dims, weight_quant_scale);
+        weight_quant_constant_layer->setName((layer_name_ + "_weight_qscale").c_str());
+
+        Weights weight_dequant_scale;
+        float* weight_dequant_scale_data = (float*)malloc(weight_scale_len * sizeof(float));
+        for (int i = 0; i < weight_scale_len; i++) {
+            weight_dequant_scale_data[i] = weight_scale_data[i] / input_scale;
+        }
+        weight_dequant_scale.type = nvinfer1::DataType::kFLOAT;
+        weight_dequant_scale.values = (void*)weight_dequant_scale_data;
+        weight_dequant_scale.count = weight_scale_len;
+        Dims weight_dequant_scale_dims;
+        weight_dequant_scale_dims.nbDims = 1;
+        weight_dequant_scale_dims.d[0] = weight_scale_len;
+        auto weight_dequant_constant_layer = network->addConstant(weight_dequant_scale_dims, weight_dequant_scale);
+        weight_dequant_constant_layer->setName((layer_name_ + "_weight_dqscale").c_str());
 
         auto weight_quant_layer = network->addQuantize(*(constant_layer->getOutput(0)), *(weight_quant_constant_layer->getOutput(0)));
         weight_quant_layer->setAxis(0);
         weight_quant_layer->setName((layer_name_ + "_weight_scale_q").c_str());
 
-        auto weight_dequant_layer = network->addDequantize(*(weight_quant_layer->getOutput(0)), *(weight_quant_constant_layer->getOutput(0)));
+        auto weight_dequant_layer = network->addDequantize(*(weight_quant_layer->getOutput(0)), *(weight_dequant_constant_layer->getOutput(0)));
         weight_dequant_layer->setAxis(0);
         weight_dequant_layer->setName((layer_name_ + "_weight_scale_dq").c_str());
         
