@@ -16,7 +16,9 @@
 #include "tnn/interpreter/net_structure.h"
 #include "tnn/layer/base_layer.h"
 
+#if TNN_CUDA_ENABLE
 #include <c10/cuda/CUDAGuard.h>
+#endif
 #include <torch/script.h>
 
 namespace TNN_NS {
@@ -91,7 +93,9 @@ private:
     InputShapesMap max_inputs_shape_;
 
     std::vector<torch::IValue> in_ivalues_;
+#if TNN_CUDA_ENABLE
     c10::cuda::CUDAStream* cuda_stream_;
+#endif
 };
 
 }  // namespace TNN_NS

@@ -23,8 +23,10 @@ if (NOT TNN_TIACC_MODE)
     add_definitions(-DSAVE_CACHE_FILE)
 endif()
 
-enable_language(CUDA)
-include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+if(TNN_CUDA_ENABLE)
+    enable_language(CUDA)
+    include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+endif()
 
 message(${TNN_TORCH_SRC})
 add_library(TNNTorch OBJECT ${TNN_TORCH_SRC})

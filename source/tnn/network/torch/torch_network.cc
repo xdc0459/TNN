@@ -39,7 +39,9 @@
 #include <torch/csrc/jit/passes/freeze_module.h>
 #include "torch/csrc/jit/passes/lower_tuples.h"
 
+#if TNN_CUDA_ENABLE
 #include <c10/cuda/CUDAStream.h>
+#endif
 
 #ifdef TNN_TORCHVISION
 #include <torchvision/vision.h>
@@ -58,10 +60,12 @@ TNNTorchNetwork::~TNNTorchNetwork() {
         delete blob_manager_;
         blob_manager_ = nullptr;
     }
+#if TNN_CUDA_ENABLE
     if(cuda_stream_) {
         delete cuda_stream_;
 	cuda_stream_ = nullptr;
     }
+#endif
 }
 
 Status TNNTorchNetwork::Init(NetworkConfig &net_config, ModelConfig &model_config,
@@ -85,12 +89,14 @@ Status TNNTorchNetwork::Init(NetworkConfig &net_config, ModelConfig &model_confi
         return TNNERR_DEVICE_CONTEXT_CREATE;
     }
 
+#if TNN_CUDA_ENABLE
     std::shared_ptr<c10::cuda::CUDAStreamGuard> stream_guard = nullptr;
     if(net_config.device_type == DEVICE_CUDA) {
         cuda_stream_ = new c10::cuda::CUDAStream(c10::cuda::getStreamFromPool(true, net_config.device_id));
         context_->SetCommandQueue(cuda_stream_->stream());
         stream_guard = std::make_shared<c10::cuda::CUDAStreamGuard>(*cuda_stream_);  
     }
+#endif
 
     min_inputs_shape_ = min_inputs_shape;
     max_inputs_shape_ = max_inputs_shape;
@@ -308,10 +314,12 @@ Status TNNTorchNetwork::ReleaseTorchOutputTensors() {
 }
 
 Status TNNTorchNetwork::ForwardAsync(Callback call_back) {
+#if TNN_CUDA_ENABLE
     std::shared_ptr<c10::cuda::CUDAStreamGuard> stream_guard = nullptr;
     if(config_.device_type == DEVICE_CUDA) {
          stream_guard = std::make_shared<c10::cuda::CUDAStreamGuard>(*cuda_stream_); 
     } 
+#endif
     // TNN blob holds torch's output Tensor of previous forward round, so we can access it's data.
     // at this point, we don't need it, so release it to save memory.
     RETURN_ON_FAIL(ReleaseTorchOutputTensors());

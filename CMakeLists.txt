@@ -356,6 +356,7 @@ if(TNN_APPLE_NPU_ENABLE)
 endif()
 
 if(TNN_CUDA_ENABLE)
+    add_definitions(-DTNN_CUDA_ENABLE=1)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
     add_subdirectory(source/tnn/device/cuda)
     if(TNN_TENSORRT_ENABLE)

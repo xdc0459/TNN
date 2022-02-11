@@ -24,7 +24,9 @@
 #include "tnn/network/torch/torch_optimize.h"
 
 #include "tnn/utils/blob_dump_utils.h"
+#if TNN_CUDA_ENABLE
 #include <c10/cuda/CUDACachingAllocator.h>
+#endif
 
 namespace TNN_NS {
 
@@ -194,11 +196,12 @@ torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_inp
                 block.register_max_inshape(max_shape);
                 block.register_intype(in_type);
             }
-
+#if TNN_CUDA_ENABLE
             if (config.device_type == DEVICE_CUDA) {
                 // release cached cuda memory
                 c10::cuda::CUDACachingAllocator::emptyCache();
             }
+#endif
         }
     #if (DUMP_INPUT_BLOB || DUMP_OUTPUT_BLOB)
         {
@@ -288,10 +291,12 @@ torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_inp
     // std::cout << "============================= the final graph ===========================" << std::endl;
     // std::cout << g->toString() << std::endl;
 
+#if TNN_CUDA_ENABLE
     if (config.device_type == DEVICE_CUDA) {
         // release cached cuda memory
         c10::cuda::CUDACachingAllocator::emptyCache();
     }
+#endif
 
     return mod;
 }

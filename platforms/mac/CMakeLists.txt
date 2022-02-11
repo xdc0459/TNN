@@ -53,3 +53,12 @@ if(TNN_OPENVINO_ENABLE)
 
     target_link_libraries(TNN inference_engine inference_engine_legacy inference_engine_transformations inference_engine_lp_transformations ngraph)
 endif()
+
+if (TNN_TNNTORCH_ENABLE)
+    find_package(Torch REQUIRED)
+    target_link_libraries(TNN ${TORCH_LIBRARIES})
+    if(TNN_TORCHVISION_ENABLE)
+        find_package(TorchVision REQUIRED)
+        target_link_libraries(TNN TorchVision::TorchVision)
+    endif()
+endif()

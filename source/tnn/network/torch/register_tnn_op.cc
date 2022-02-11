@@ -19,9 +19,11 @@
 #include "tnn/network/torch/torch_utils.h"
 #include "torch/csrc/jit/runtime/custom_operator.h"
 #include "tnn/interpreter/tnn/model_packer.h"
+#if TNN_CUDA_ENABLE
 #include <cuda_runtime.h>
 
 #include "c10/cuda/CUDAStream.h"
+#endif
 #include "tnn/utils/blob_dump_utils.h"
 #include "tnn/interpreter/tnn/model_interpreter.h"
 
@@ -69,10 +71,12 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         compiled_engine->is_init_ = true;
     }
 
+#if TNN_CUDA_ENABLE
     if (inputs[0].is_cuda()) {
         c10::cuda::CUDAStream stream = c10::cuda::getCurrentCUDAStream(inputs[0].device().index());
         compiled_engine->instance_->SetCommandQueue(stream.stream());
     }
+#endif
 
     compiled_engine->instance_->Reshape(inputs_shape_map);
 
@@ -122,8 +126,14 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         // DumpDeviceBlob(output_blobs[output_names[i]], cmd_queue, "tnn-output-"+output_names[i]);
     }
 
+// #if TNN_PROFILE
+//     compiled_engine->instance_->StartProfile();
+// #endif
     // use torch memory management
     compiled_engine->instance_->Forward();
+// #if TNN_PROFILE
+//     compiled_engine->instance_->FinishProfile(true);
+// #endif
 
     return outputs;
 }

@@ -36,14 +36,18 @@ inline Status ConvertToTorchDevice(c10::Device& device, const DeviceType device_
     Status ret = TNN_OK;
     switch (device_type) {
         case DEVICE_X86:
+        case DEVICE_ARM:
+        case DEVICE_NAIVE:
             device = c10::Device(c10::kCPU, c10::DeviceIndex(device_id));
             break;
+#if TNN_CUDA_ENABLE
         case DEVICE_CUDA:
             if (device_id == -1) {
                 RETURN_ON_FAIL(dynamic_cast<CudaDevice*>(GetDevice(DEVICE_CUDA))->GetCurrentDeviceId(device_id));
             }
             device = c10::Device(c10::kCUDA, c10::DeviceIndex(device_id));
             break;
+#endif
         default:
             ret = Status(TNNERR_DEVICE_NOT_SUPPORT, "device not supported by TorchNetwork");
             break;
@@ -56,7 +60,7 @@ inline Status ConvertToDeviceType(DeviceType &device_type, const c10::Device& de
     Status ret = TNN_OK;
     switch (device.type()) {
         case c10::kCPU:
-            device_type = DEVICE_X86;
+            device_type = DEVICE_ARM;
             break;
         case c10::kCUDA:
             device_type = DEVICE_CUDA;
