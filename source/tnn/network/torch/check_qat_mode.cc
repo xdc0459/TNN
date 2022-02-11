@@ -55,8 +55,11 @@ bool inlineCalls(Block* block) {
       default: {
         // 1562: aten::fake_quantize_per_tensor_affine
         // 2114 aten::fake_quantize_per_channel_affine
-        if(cur->kind() == 1562 || cur->kind() == 2114)
+        // if(cur->kind() == 1562 || cur->kind() == 2114)
+        if(cur->kind() == Symbol::fromQualString("aten::fake_quantize_per_tensor_affine") ||
+           cur->kind() == Symbol::fromQualString("aten::fake_quantize_per_channel_affine")) {
           return true;
+        }
         std::cout<<"PengNodeKind:"<<cur->kind().toQualString()<<" Kind:"<<cur->kind()<<std::endl;
         for (auto b : cur->blocks()) {
           inlineCalls(b);
