@@ -95,7 +95,7 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     for (int i = 0; i < input_names.size(); i++) {
         // set blob handle directly
         DeviceType device_type;
-        BlobDesc blob_desc;
+        BlobDesc blob_desc = input_blobs[input_names[i]]->GetBlobDesc();
         ConvertToDeviceType(device_type, inputs[i].device());
         GetBlobDescFromTensor(blob_desc, inputs[i]);
         auto contig_input = inputs[i].contiguous();

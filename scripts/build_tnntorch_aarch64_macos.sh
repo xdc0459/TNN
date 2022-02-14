@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DEBUG="OFF"
-PROFILE="ON"
+PROFILE="OFF"
 TARGET_ARCH=aarch64
 
 CC=`which clang`
