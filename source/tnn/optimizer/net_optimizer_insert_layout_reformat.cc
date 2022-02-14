@@ -119,6 +119,16 @@ namespace optimizer {
         return true;
     }
 
+    static inline bool IsLayoutReformatLayer(std::shared_ptr<LayerInfo> layer) {
+        if (layer->type == LAYER_REFORMAT) {
+            auto param = dynamic_cast<ReformatLayerParam *>(layer->param.get());
+            if (param->src_format != param->dst_format && param->src_type == param->dst_type) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // metal and opencl may use adaptor layer to fall back computing on arm
     std::shared_ptr<const ImplementedLayout> NetOptimizerInsertLayoutReformat::GetLayoutsByLayerType(LayerType type) {
         auto device_layouts = device_->GetImplementedLayout(type);
@@ -301,7 +311,7 @@ namespace optimizer {
                 bool need_reformat                      = false;
                 std::shared_ptr<LayerInfo> output_layer = layers_orig[0];
                 DataFormat output_layout                = GetInputLayout(net_config_, device_->GetDeviceType());
-                for (const auto &layer : layers_modified) {
+                for (const auto &layer : layers_orig) {
                     for (const auto &output : layer->outputs) {
                         if (output == model_output) {
                             if (layer_choosed_layout.find(layer->name) == layer_choosed_layout.end()) {
@@ -340,6 +350,10 @@ namespace optimizer {
                     for (const auto &layer : layers_modified) {
                         for (auto &input : layer->inputs) {
                             if (input == model_output) {
+                                if (IsLayoutReformatLayer(layer)) {
+                                    input = new_blob;
+                                    break;
+                                }
                                 if (layer_choosed_layout.find(layer->name) == layer_choosed_layout.end()) {
                                     LOGE(
                                         "NetOptimizerInsertLayoutReformat Error: layout of output layer %s not "
