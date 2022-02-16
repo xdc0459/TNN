@@ -2,10 +2,17 @@
 
 DEBUG="OFF"
 PROFILE="OFF"
+OPENMP="OFF"
 TARGET_ARCH=aarch64
 
 CC=`which clang`
 CXX=`which clang++`
+
+if [ $OPENMP == "ON" ]; then
+    CC=/opt/homebrew/opt/llvm/bin/clang
+    CXX=/opt/homebrew/opt/llvm/bin/clang++
+    export LIBOMP_DIR=/opt/homebrew/opt/libomp/lib
+fi
 
 if [ -z $TNN_ROOT_PATH ]
 then
@@ -37,7 +44,8 @@ cmake ${TNN_ROOT_PATH} \
     -DCMAKE_SYSTEM_PROCESSOR=$TARGET_ARCH \
     -DDEBUG:BOOL=$DEBUG \
     -DTNN_PROFILER_ENABLE=$PROFILE \
-    -DTNN_TEST_ENABLE=ON \
+    -DTNN_OPENMP_ENABLE:BOOL=$OPENMP \
+    -DTNN_TEST_ENABLE=OFF \
     -DTNN_CPU_ENABLE=ON \
     -DTNN_ARM_ENABLE=ON \
     -DTNN_ARM82_ENABLE=ON \
