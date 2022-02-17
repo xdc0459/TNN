@@ -14,9 +14,7 @@ CC=`which clang`
 CXX=`which clang++`
 
 if [ $OPENMP == "ON" ]; then
-    CC=/opt/homebrew/opt/llvm/bin/clang
-    CXX=/opt/homebrew/opt/llvm/bin/clang++
-    export LIBOMP_DIR=/opt/homebrew/opt/libomp/lib
+    export LIBOMP_ROOT_DIR=/opt/homebrew/opt/libomp
 fi
 
 if [ -z $TNN_ROOT_PATH ]
@@ -31,7 +29,7 @@ cd build_aarch64_macos
 cmake ${TNN_ROOT_PATH} \
     -DCMAKE_C_COMPILER=$CC \
     -DCMAKE_CXX_COMPILER=$CXX \
-    -DTNN_TEST_ENABLE=OFF \
+    -DTNN_TEST_ENABLE=ON \
     -DTNN_UNIT_TEST_ENABLE=ON \
     -DDEBUG:BOOL=$DEBUG \
     -DTNN_CPU_ENABLE=ON \

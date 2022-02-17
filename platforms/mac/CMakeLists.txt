@@ -3,6 +3,10 @@ if(TNN_OPENCL_ENABLE)
     target_link_libraries(TNN ${OpenCL_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
+if(TNN_OPENMP_ENABLE)
+    target_link_libraries(TNN omp)
+endif()
+
 # Darwin third party
 if(TNN_METAL_ENABLE OR TNN_APPLE_NPU_ENABLE)
     target_link_libraries(TNN "-framework Foundation")
@@ -55,12 +59,8 @@ if(TNN_OPENVINO_ENABLE)
 endif()
 
 if (TNN_TNNTORCH_ENABLE)
-    if (NOT TNN_OPENMP_ENABLE)
-        find_package(Torch REQUIRED)
-        target_link_libraries(TNN ${TORCH_LIBRARIES})
-    else()
-        target_link_libraries(TNN $ENV{LIBTORCH_ROOT_DIR}/lib/libc10.dylib $ENV{LIBTORCH_ROOT_DIR}/lib/libtorch.dylib $ENV{LIBTORCH_ROOT_DIR}/lib/libtorch_cpu.dylib)
-    endif()
+    find_package(Torch REQUIRED)
+    target_link_libraries(TNN ${TORCH_LIBRARIES})
 
     if(TNN_TORCHVISION_ENABLE)
         find_package(TorchVision REQUIRED)

@@ -9,9 +9,7 @@ CC=`which clang`
 CXX=`which clang++`
 
 if [ $OPENMP == "ON" ]; then
-    CC=/opt/homebrew/opt/llvm/bin/clang
-    CXX=/opt/homebrew/opt/llvm/bin/clang++
-    export LIBOMP_DIR=/opt/homebrew/opt/libomp/lib
+    export LIBOMP_ROOT_DIR=/opt/homebrew/opt/libomp
 fi
 
 if [ -z $TNN_ROOT_PATH ]
@@ -45,7 +43,7 @@ cmake ${TNN_ROOT_PATH} \
     -DDEBUG:BOOL=$DEBUG \
     -DTNN_PROFILER_ENABLE=$PROFILE \
     -DTNN_OPENMP_ENABLE:BOOL=$OPENMP \
-    -DTNN_TEST_ENABLE=OFF \
+    -DTNN_TEST_ENABLE=ON \
     -DTNN_CPU_ENABLE=ON \
     -DTNN_ARM_ENABLE=ON \
     -DTNN_ARM82_ENABLE=ON \
