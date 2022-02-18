@@ -48,6 +48,8 @@ std::string DataTypeUtils::GetDataTypeString(DataType data_type) {
         return "bfp16";
     } else if (data_type == DATA_TYPE_INT8) {
         return "int8";
+    } else if (data_type == DATA_TYPE_INT64) {
+        return "int64";
     } else if (data_type == DATA_TYPE_INT32) {
         return "int32";
     } else if (data_type == DATA_TYPE_INT64) {
