@@ -27,4 +27,13 @@ public:
 DECLARE_BLOB_CONVERTER_CREATER(Cpu);
 REGISTER_BLOB_CONVERTER(Cpu, DEVICE_NAIVE);
 
+class AppleNPUBlobConverterAcc : public DefaultBlobConverterAcc {
+public:
+    AppleNPUBlobConverterAcc(Blob *blob) : DefaultBlobConverterAcc(blob) {}
+    ~AppleNPUBlobConverterAcc() {}
+};
+
+DECLARE_BLOB_CONVERTER_CREATER(AppleNPU);
+REGISTER_BLOB_CONVERTER(AppleNPU, DEVICE_APPLE_NPU);
+
 }  // namespace TNN_NS

@@ -129,5 +129,6 @@ std::map<LayerType, std::shared_ptr<LayerAccCreator>>& CpuDevice::GetLayerCreato
 }
 
 TypeDeviceRegister<CpuDevice> g_cpu_device_register(DEVICE_NAIVE);
+TypeDeviceRegister<CpuDevice> g_apple_npu_device_register(DEVICE_APPLE_NPU);
 
 }  // namespace TNN_NS

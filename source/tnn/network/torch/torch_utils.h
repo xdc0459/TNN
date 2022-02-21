@@ -37,6 +37,7 @@ inline Status ConvertToTorchDevice(c10::Device& device, const DeviceType device_
     switch (device_type) {
         case DEVICE_X86:
         case DEVICE_ARM:
+        case DEVICE_APPLE_NPU:
         case DEVICE_NAIVE:
             device = c10::Device(c10::kCPU, c10::DeviceIndex(device_id));
             break;
@@ -60,7 +61,9 @@ inline Status ConvertToDeviceType(DeviceType &device_type, const c10::Device& de
     Status ret = TNN_OK;
     switch (device.type()) {
         case c10::kCPU:
-            device_type = DEVICE_ARM;
+            // devicez_type = DEVICE_ARM;
+            // device_type = DEVICE_X86;
+            device_type = DEVICE_APPLE_NPU;
             break;
         case c10::kCUDA:
             device_type = DEVICE_CUDA;

@@ -120,7 +120,9 @@ Status CoreMLNetwork::Init(NetworkConfig &net_config, ModelConfig &model_config,
             auto default_interpreter = dynamic_cast<DefaultModelInterpreter *>(interpreter);
             CHECK_PARAM_NULL(default_interpreter);
             auto md5s = default_interpreter->GetParamsMd5();
-            std::string md5 = md5s.size() > 0 ? md5s[0]: "unit_test_default_md5";  // default md5 for unit_test
+            static int __cnt = 0;
+            std::string md5 = md5s.size() > 0 ? md5s[0]:  "splt-" + std::to_string(__cnt++);
+            // std::string md5 = md5s.size() > 0 ? md5s[0]: "unit_test_default_md5";  // default md5 for unit_test
             if (md5s.size() >= 2) {
                 md5 = md5 + "-" + md5s[1];
             }
@@ -466,6 +468,11 @@ Status CoreMLNetwork::GetCommandQueue(void **command_queue) {
         return Status(TNNERR_DEVICE_CONTEXT_CREATE, "CoreML GetCommandQueue is nil");
     }
     return context_->GetCommandQueue(command_queue);
+}
+
+Status CoreMLNetwork::SetCommandQueue(void *command_queue) {
+    
+    return TNN_OK;
 }
 
 Status CoreMLNetwork::Forward() {

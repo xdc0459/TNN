@@ -35,11 +35,11 @@ fromFeature:(NSDictionary<NSString *, MLFeatureDescription *> *) featureDict API
     if (self = [super init]) {
         _cachePath = [NSString stringWithUTF8String:path.c_str()];
         if (![[NSFileManager defaultManager] fileExistsAtPath:_cachePath]) {
-            LOGE("The input cache path (%s) is invalid, automatically try NSTemporaryDirectory\n", path.c_str());
+            LOGD("The input cache path (%s) is invalid, automatically try NSTemporaryDirectory\n", path.c_str());
             _cachePath = NSTemporaryDirectory();
-#if TNN_COREML_TEST
-            LOGE("Input cache path: %s\n", _cachePath.UTF8String);
-#endif
+// #if TNN_COREML_TEST
+            LOGD("Input cache path: %s\n", _cachePath.UTF8String);
+// #endif
         }
         _ID = [NSString stringWithUTF8String:ID.c_str()];
     }
@@ -127,9 +127,9 @@ fromFeature:(NSDictionary<NSString *, MLFeatureDescription *> *) featureDict API
     //remove mlmodel, no need to check error
     [self cleanupMLModel];
     
-#if TNN_COREML_TEST
+// #if TNN_COREML_TEST
     [self cleanupMLModelC];
-#endif
+// #endif
     
 #ifdef DEBUG
     LOGD("TNN buildFromProtoBuf time: %f ms\n", (CFAbsoluteTimeGetCurrent() - time_start) * 1000.0);
