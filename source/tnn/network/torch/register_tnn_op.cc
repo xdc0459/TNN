@@ -42,7 +42,7 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     for (auto &input : inputs) {
         inputs_shape_map[input_names[input_idx]] = util::toDims(input.sizes());
         BlobDesc blob_desc;
-        GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
+        GetBlobDescFromTensor(blob_desc, inputs[input_idx], compiled_engine->network_config_.device_type);
         // binding input data type
         inputs_data_type_map[input_names[input_idx++]] = blob_desc.data_type;
     }
@@ -94,10 +94,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
 
     for (int i = 0; i < input_names.size(); i++) {
         // set blob handle directly
-        DeviceType device_type;
         BlobDesc blob_desc = input_blobs[input_names[i]]->GetBlobDesc();
-        ConvertToDeviceType(device_type, inputs[i].device());
-        GetBlobDescFromTensor(blob_desc, inputs[i]);
+        GetBlobDescFromTensor(blob_desc, inputs[i], compiled_engine->network_config_.device_type);
         auto contig_input = inputs[i].contiguous();
         // extend the lifetime of contig tensors
         contig_inputs.emplace_back(contig_input);
@@ -126,6 +124,10 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         // DumpDeviceBlob(output_blobs[output_names[i]], cmd_queue, "tnn-output-"+output_names[i]);
     }
 
+    // for (int i = 0; i < input_names.size(); i++) {
+    //     DumpDeviceBlob(input_blobs[input_names[i]], cmd_queue, "tnn-input-"+input_names[i]);
+    // }
+
 // #if TNN_PROFILE
 //     compiled_engine->instance_->StartProfile();
 // #endif
@@ -134,6 +136,10 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
 // #if TNN_PROFILE
 //     compiled_engine->instance_->FinishProfile(true);
 // #endif
+
+    // for (int i = 0; i < output_names.size(); i++) {
+    //     DumpDeviceBlob(output_blobs[output_names[i]], cmd_queue, "tnn-output-"+output_names[i]);
+    // }
 
     return outputs;
 }

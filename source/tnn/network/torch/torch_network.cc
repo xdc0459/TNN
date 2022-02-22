@@ -267,7 +267,7 @@ Status TNNTorchNetwork::CreateIOBinding(InputShapesMap  min_shape, InputShapesMa
         TNN_CHECK(tensor != nullptr, "Got null tensor from IValueRouter");
 
         BlobDesc desc;
-        RETURN_ON_FAIL(GetBlobDescFromTensor(desc, *tensor));
+        RETURN_ON_FAIL(GetBlobDescFromTensor(desc, *tensor, config_.device_type));
 
         BlobHandle handle;
         handle.base = tensor->data_ptr(); 
@@ -363,7 +363,7 @@ Status TNNTorchNetwork::ForwardAsync(Callback call_back) {
             TNN_CHECK(tensor != nullptr, "Got null tensor from IValueRouter");
 
             BlobDesc desc;
-            RETURN_ON_FAIL(GetBlobDescFromTensor(desc, *tensor));
+            RETURN_ON_FAIL(GetBlobDescFromTensor(desc, *tensor, config_.device_type));
 
             BlobHandle handle;
             handle.base = tensor->data_ptr(); 
@@ -386,7 +386,7 @@ Status TNNTorchNetwork::ForwardAsync(Callback call_back) {
             TNN_CHECK(tensor != nullptr, "Got null tensor from IValueRouter");
 
             BlobDesc desc;
-            RETURN_ON_FAIL(GetBlobDescFromTensor(desc, *tensor));
+            RETURN_ON_FAIL(GetBlobDescFromTensor(desc, *tensor, config_.device_type));
 
             BlobHandle handle;
             handle.base = tensor->data_ptr(); 

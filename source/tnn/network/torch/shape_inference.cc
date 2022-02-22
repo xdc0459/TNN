@@ -106,14 +106,14 @@ void runShapeInfer(torch::jit::Module& mod, std::vector<SegmentedBlock> &segment
             for (auto &r : results) {
                 auto result = r.toTensor();
                 BlobDesc blob_desc;
-                GetBlobDescFromTensor(blob_desc, result);
+                GetBlobDescFromTensor(blob_desc, result, config.device_type);
                 blob_desc.name = new_vec[i++]->debugName();
                 subgraph_input_info.push_back(blob_desc);
             }
         } else {
             auto result = output.toTensor();
             BlobDesc blob_desc;
-            GetBlobDescFromTensor(blob_desc, result);
+            GetBlobDescFromTensor(blob_desc, result, config.device_type);
             blob_desc.name = new_vec[0]->debugName();
             subgraph_input_info.push_back(blob_desc);
         }

@@ -57,13 +57,11 @@ inline Status ConvertToTorchDevice(c10::Device& device, const DeviceType device_
     return ret;
 }
 
-inline Status ConvertToDeviceType(DeviceType &device_type, const c10::Device& device) {
+inline Status ConvertToDeviceType(DeviceType &device_type, const c10::Device& device, const DeviceType &acc_device) {
     Status ret = TNN_OK;
     switch (device.type()) {
         case c10::kCPU:
-            // devicez_type = DEVICE_ARM;
-            // device_type = DEVICE_X86;
-            device_type = DEVICE_APPLE_NPU;
+            device_type = acc_device;
             break;
         case c10::kCUDA:
             device_type = DEVICE_CUDA;
@@ -150,7 +148,7 @@ Status CreateTensorByBlob(std::shared_ptr<torch::Tensor> &tensor, Blob *blob);
 
 Status ConvertIValueToTensors(std::vector<torch::Tensor> &tensor, const torch::jit::IValue &ivalue);
 
-Status GetBlobDescFromTensor(BlobDesc &desc, const torch::Tensor &tensor);
+Status GetBlobDescFromTensor(BlobDesc &desc, const torch::Tensor &tensor, const DeviceType &acc_device);
 
 Status CreateIValueFromTypePtr(c10::IValue &ivalue, c10::TypePtr type);
 

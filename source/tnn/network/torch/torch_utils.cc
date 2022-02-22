@@ -37,10 +37,10 @@
 
 namespace TNN_NS {
 
-Status GetBlobDescFromTensor(BlobDesc &desc, const torch::Tensor &tensor) {
+Status GetBlobDescFromTensor(BlobDesc &desc, const torch::Tensor &tensor, const DeviceType &acc_device) {
     auto device = tensor.device();
 
-    RETURN_ON_FAIL(ConvertToDeviceType(desc.device_type, device));
+    RETURN_ON_FAIL(ConvertToDeviceType(desc.device_type, device, acc_device));
     desc.dims = std::vector<int>(tensor.sizes().begin(), tensor.sizes().end());
 
     auto scalar_type = c10::typeMetaToScalarType(tensor.dtype());
