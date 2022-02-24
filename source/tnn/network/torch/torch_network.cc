@@ -87,7 +87,7 @@ Status TNNTorchNetwork::Init(NetworkConfig &net_config, ModelConfig &model_confi
 
     std::shared_ptr<c10::cuda::CUDAStreamGuard> stream_guard = nullptr;
     if(net_config.device_type == DEVICE_CUDA) {
-        cuda_stream_ = new c10::cuda::CUDAStream(c10::cuda::getStreamFromPool(true, net_config.device_id));
+        cuda_stream_ = new c10::cuda::CUDAStream(c10::cuda::getDefaultCUDAStream(net_config.device_id));
         context_->SetCommandQueue(cuda_stream_->stream());
         stream_guard = std::make_shared<c10::cuda::CUDAStreamGuard>(*cuda_stream_);  
     }
