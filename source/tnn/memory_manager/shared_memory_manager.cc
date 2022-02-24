@@ -50,6 +50,7 @@ SharedMemory SharedMemoryManager::GetSharedMemory(size_t forward_memory_size, st
     SharedMemory &share_memory                                   = s_shared_forward_memory[memory_id];
     std::vector<ISharedMemoryChangeListener *> &shared_instances = s_shared_memory_instances[memory_id];
     if (forward_memory_size > share_memory.shared_memory_size) {
+        printf("forward_memory_size: u% \n", forward_memory_size);
         void *new_shared_memory = NULL;
         BlobMemorySizeInfo info;
         info.data_type = DATA_TYPE_INT8; 
