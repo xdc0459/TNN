@@ -131,8 +131,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     // use int8 tensor not aligned to 256 bytes, invalid for context memmory
     shared_memory_size = (shared_memory_size + 3) / 4;
     std::shared_ptr<at::Tensor> forward_tensor = std::make_shared<torch::Tensor>(
-        at::empty(shared_memory_size, {device.type()}).to(at::ScalarType::Float).contiguous());
-    compiled_engine->instance_->SetForwardMemory(reinterpret_cast<void*>(forward_tensor->data_ptr<float>()));
+        at::empty(shared_memory_size, {device.type()}).contiguous());
+    compiled_engine->instance_->SetForwardMemory(forward_tensor->data_ptr());
 
     // use torch memory management
     compiled_engine->instance_->Forward();

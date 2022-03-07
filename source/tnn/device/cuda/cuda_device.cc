@@ -55,6 +55,7 @@ Status CudaDevice::Allocate(void **handle, MatType mat_type, DimsVector dims) {
 Status CudaDevice::Allocate(void** handle, BlobMemorySizeInfo& size_info) {
     void* ptr;
     size_t bytes_size = GetBlobMemoryBytesSize(size_info);
+    LOGE("TNN::CudaDevice Allocate: %lu\n", bytes_size);
     cudaError_t status = cudaMalloc(&ptr, bytes_size);
     if (cudaSuccess != status) {
         LOGE("cuda alloc failed with size %lu for %p status:%d\n", bytes_size, ptr, status);
@@ -67,6 +68,7 @@ Status CudaDevice::Allocate(void** handle, BlobMemorySizeInfo& size_info) {
 
 Status CudaDevice::Allocate(void** handle, size_t size) {
     void* ptr = nullptr;
+    LOGE("TNN::CudaDevice Allocate: %lu\n", size);
     cudaError_t status = cudaMalloc(&ptr, size);
     if (cudaSuccess != status) {
         LOGE("cuda alloc failed with size %lu for %p, status:%d\n", size, ptr, status);
@@ -170,6 +172,28 @@ NetworkType CudaDevice::ConvertAutoNetworkType() {
 Status CudaDevice::RegisterLayerAccCreator(LayerType type, LayerAccCreator *creator) {
     GetLayerCreatorMap()[type] = std::shared_ptr<LayerAccCreator>(creator);
     return TNN_OK;
+}
+
+void ShowGpuMemUsage(std::string tag) {
+    size_t free_byte ;
+    size_t total_byte ;
+
+    cudaError_t cuda_status = cudaMemGetInfo( &free_byte, &total_byte ) ;
+
+    if ( cudaSuccess != cuda_status ){
+        printf("Error: cudaMemGetInfo fails, %s \n", cudaGetErrorString(cuda_status) );
+        return;
+    }
+
+       double free_db = (double)free_byte ;
+    double total_db = (double)total_byte ;
+    double used_db = total_db - free_db ;
+    printf("TNNMemLog: GPU memory usage(%s): used = %f, free = %f MB, total = %f MB\n",
+           tag.c_str(), used_db/1024.0/1024.0, free_db/1024.0/1024.0, total_db/1024.0/1024.0);
+}
+
+void CudaDevice::GetMem(std::string tag) {
+    ShowGpuMemUsage(tag);
 }
 
 std::map<LayerType, std::shared_ptr<LayerAccCreator>>&

@@ -98,6 +98,8 @@ public:
     // @brief auto network type decided by device.
     virtual NetworkType ConvertAutoNetworkType() = 0;
 
+    virtual void GetMem(std::string tag) {};
+
 private:
     DeviceType device_type_;
 };

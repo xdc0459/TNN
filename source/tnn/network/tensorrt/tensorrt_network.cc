@@ -103,10 +103,12 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
     context_ = device_->CreateContext(net_config.device_id);
     CHECK_PARAM_NULL(context_);
 
+    device_->GetMem("Before LoadLibrary");
     Status ret = context_->LoadLibrary(net_config.library_path);
     if (ret != TNN_OK) {
         return ret;
     }
+    device_->GetMem("After LoadLibrary");
 
     {
         // use mutex to protect net_resource and net_structure in multi-thread
@@ -116,6 +118,7 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
             return ret;
         }
     }
+    device_->GetMem("After Optimize");
 
     init_thread_id_    = std::this_thread::get_id();
 
@@ -125,6 +128,7 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
         return ret;
     }
 
+    device_->GetMem("After Blob Manager Init");
     BlobMap inputs;
     ret = blob_manager_->GetAllInputBlobs(inputs);
     if (ret != TNN_OK) {
@@ -132,11 +136,13 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
         return ret;
     }
 
+    device_->GetMem("After GetAllInputBlobs");
     ret = InitLayers(net_structure, net_resource, enable_const_folder);
     if (ret != TNN_OK) {
         return ret;
     }
 
+    device_->GetMem("After InitLayers");
     RETURN_ON_NEQ(CheckConstBlobs(), TNN_OK);
 
     BlobMap outputs;
@@ -146,6 +152,7 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
         return ret;
     }
 
+    device_->GetMem("After GetAllOutputBlobs");
     std::string cache_buf;
     default_interpreter->GetCache(cache_buf);
 
@@ -179,6 +186,7 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
         }
     }
 
+    device_->GetMem("After InitWithoutCache");
     if (!test_mode) {
         if (cache_buf.size() == 0) {
             // deserialize cuda engine with cache file
@@ -214,6 +222,7 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
             return ret;
     }
 
+    device_->GetMem("After deserializeCudaEngine");
     int bind_num = m_trt_engine->getNbBindings();
     this->m_trt_bindings = new void*[bind_num];
 
@@ -223,6 +232,7 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
         return ret;
     }
 
+    device_->GetMem("After ReshapeLayers");
     if (net_config.cache_path.compare(CACHE_MEMORY_TAG) != 0) {
         ret = blob_manager_->AllocateBlobMemory();
         if (ret != TNN_OK) {
@@ -230,11 +240,13 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
         }
     }
 
+    device_->GetMem("After AllocateBlobMemory");
     for (auto iter : outputs) {
         int index = m_trt_engine->getBindingIndex(iter.first.c_str());
         this->m_trt_bindings[index] = iter.second->GetHandle().base;
     }
 
+    device_->GetMem("TensorRTNetwork_::Init End");
     return TNN_OK;
 }
 
@@ -745,6 +757,9 @@ Status TensorRTNetwork_::InitWithoutCache(BlobMap &inputs, BlobMap &outputs, std
     }
     if (this->int8_mode) {
         m_trt_config->setFlag(BuilderFlag::kINT8);
+    }
+    if (std::stoi(GetCudaVersion())<11) {
+        m_trt_config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kCUBLAS));
     }
     m_trt_engine = m_trt_builder->buildEngineWithConfig(*m_trt_network, *m_trt_config);
     if (!m_trt_engine) {

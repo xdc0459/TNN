@@ -56,6 +56,8 @@ public:
 
     Status GetCurrentDeviceId(int &device_id);
 
+    void GetMem(std::string tag);
+
 private:
     static std::map<LayerType, std::shared_ptr<LayerAccCreator>>& GetLayerCreatorMap();
 };
