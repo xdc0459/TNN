@@ -164,7 +164,7 @@ public:
         const auto stride = getValue<std::vector<int64_t>>(inputs[3]);
         const auto padding = getValue<std::vector<int64_t>>(inputs[4]);
         const auto dialation = getValue<std::vector<int64_t>>(inputs[5]);
-	const auto output_pads = getValue<std::vector<int64_t>>(inputs[7]);
+        const auto output_pads = getValue<std::vector<int64_t>>(inputs[7]);
         const auto group = getValue<int64_t>(inputs[8]);
         // const auto transposed = getValue<bool>(inputs[6]);
 
@@ -179,15 +179,15 @@ public:
         // set param accroding to real value, just test here
         layer_param->name = layer_info->name;
         if(output_pads.size()>0 && output_pads[0] != 0) {
-		layer_param->pad_type = 3;
-		layer_param->output_channel = shape[1] * group;
-		layer_param->input_channel = shape[0] / group;
-	} else {
-		layer_param->pad_type = -1;
-		layer_param->output_channel = shape[0];
-		layer_param->input_channel = shape[1];
-	}
-	layer_param->kernels = {shape[3], shape[2]};
+            layer_param->pad_type = 3;
+            layer_param->output_channel = shape[1] * group;
+            layer_param->input_channel = shape[0] / group;
+        } else {
+            layer_param->pad_type = -1;
+            layer_param->output_channel = shape[0];
+            layer_param->input_channel = shape[1];
+        }
+        layer_param->kernels = {shape[3], shape[2]};
         layer_param->dialations = {(int)dialation[1], (int)dialation[0]};
         layer_param->strides = {(int)stride[1], (int)stride[0]};
         layer_param->pads = {(int)padding[1], (int)padding[1], (int)padding[0], (int)padding[0]};
@@ -708,20 +708,43 @@ public:
         layer_info->type_str = "MatMul";
         layer_info->name = node->output(0)->debugName();
 
-        // https://pytorch.org/docs/stable/generated/torch.matmul.html?highlight=matmul#torch.matmul
-        // Torch matmul has two inputs, no weight resource.
-        // param.weight_position == 1 by default. axis == 0 by default.
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->inputs.push_back(node->inputs()[1]->debugName());
         layer_info->outputs.push_back(node->outputs()[0]->debugName());
 
-        auto layer_param = std::make_shared<MatMulLayerParam>();
+        const auto& inputs     = node->inputs();
+        const auto input0_kind = inputs[0]->node()->kind();
+        const auto input1_kind = inputs[1]->node()->kind();
+        
+        auto layer_res         = new MatMulLayerResource();
+        auto layer_param       = std::make_shared<MatMulLayerParam>();
+
+        if (input0_kind == at::prim::Constant || input1_kind == at::prim::Constant) {
+            const int weight_position      = input0_kind == at::prim::Constant ? 0 : 1;
+            const int input_index          = input0_kind == at::prim::Constant ? 1 : 0;
+
+            layer_info->inputs.push_back(inputs[input_index]->debugName());
+
+            auto weight_buf                = getValue(inputs[weight_position]);
+            layer_res->weight              = ConvertHalfHandle(weight_buf);
+
+            layer_param->weight_position   = weight_position;
+            if (input0_kind == at::prim::Constant) {
+                layer_param->matrix_a_dims = weight_buf.GetBufferDims();
+            } else {
+                layer_param->matrix_b_dims = weight_buf.GetBufferDims();
+            }
+        } else {
+            // No Constant.
+            // by default, param.weight_position == -1, param.axis == 0.
+            layer_info->inputs.push_back(inputs[0]->debugName());
+            layer_info->inputs.push_back(inputs[1]->debugName());
+        }
+
         layer_info->param = layer_param;
 
         ADD_INPUTS_AND_OUTPUTS;
 
         net_structure->layers.push_back(layer_info);
-        net_resource->resource_map[layer_info->name] = std::shared_ptr<LayerResource>(new(MatMulLayerResource));
+        net_resource->resource_map[layer_info->name] = std::shared_ptr<LayerResource>(layer_res);
 
         return TNN_OK;
     }
