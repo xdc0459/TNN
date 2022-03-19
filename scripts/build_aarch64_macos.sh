@@ -13,7 +13,7 @@ TARGET_ARCH=aarch64
 CC=`which clang`
 CXX=`which clang++`
 
-if [ $OPENMP == "ON" ]; then
+if [ $OPENMP == "ON" ] && [ -z $LIBOMP_ROOT_DIR ]; then
     export LIBOMP_ROOT_DIR=/opt/homebrew/opt/libomp
 fi
 

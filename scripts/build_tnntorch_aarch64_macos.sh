@@ -10,7 +10,7 @@ TARGET_ARCH=aarch64
 CC=`which clang`
 CXX=`which clang++`
 
-if [ $OPENMP == "ON" ]; then
+if [ $OPENMP == "ON" ] && [ -z $LIBOMP_ROOT_DIR ]; then
     export LIBOMP_ROOT_DIR=/opt/homebrew/opt/libomp
 fi
 
@@ -22,7 +22,11 @@ fi
 TORCHVISION_ENABLE="OFF"
 PYBIND_ENABLE="OFF"
 
-export LIBTORCH_ROOT_DIR=/opt/homebrew/lib/python3.9/site-packages/torch
+if [ -z $LIBTORCH_ROOT_DIR ]
+then
+    export LIBTORCH_ROOT_DIR=/opt/homebrew/lib/python3.9/site-packages/torch
+fi
+echo "LIBTORCH_ROOT_DIR = $LIBTORCH_ROOT_DIR"
 
 # export LIBTORCHVISION_ROOT_DIR=`find /usr/local/ -name "libtorchvision*-0.9.1+*"`
 
@@ -64,7 +68,7 @@ echo Building TNN ...
 make -j6
 
 if [ -d ${TNN_INSTALL_DIR} ]
-then 
+then
     rm -rf ${TNN_INSTALL_DIR}
 fi
 
