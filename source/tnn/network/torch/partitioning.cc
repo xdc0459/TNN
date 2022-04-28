@@ -35,10 +35,13 @@ bool OpSupported(const torch::jit::Node* n) {
 
     if (conversion::GetGlobalTorchConvertMap().count(op_type) > 0) {
         auto& converter = conversion::GetGlobalTorchConvertMap()[op_type];
-        if (converter->IsSupported(n))
-            return true;
+        if (converter->IsSupported(n)) {
+		std::cout<<op_type<<"   true"<<std::endl;
+	    return true;
+	}
     }
 
+    std::cout<<op_type<<"   false"<<std::endl;
     return false;
 }
 
