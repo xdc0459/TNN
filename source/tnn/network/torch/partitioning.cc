@@ -495,24 +495,25 @@ std::vector<SegmentedBlock> Partition(torch::jit::Module& mod, std::shared_ptr<t
     // segment lowering global graph into blocks
     std::vector<SegmentedBlock> segmented_blocks = segment_graph(g);
 
-    // auto print_seg_nodes = [&](std::string msg) {
-    //     std::cout << "+++++++++++++++++++ " << msg << " +++++++++++++++++++" << std::endl;
-    //     for (auto block : segmented_blocks) {
+    auto print_seg_nodes = [&](std::string msg) {
+         std::cout << "+++++++++++++++++++ " << msg << " +++++++++++++++++++" << std::endl;
+         for (auto block : segmented_blocks) {
     //         std::cout << block.g()->toString(false);
     //         for (auto node : block.raw_nodes()) {
     //             std::cout << node->kind().toQualString() << std::endl;
     //         }
-    //         std::cout << "++++++++++++++++++++++++ " << block.target() << " +++++++++++++++++++++++++" << std::endl;
-    //     }
-    // };
-    // print_seg_nodes("after seg");
+             std::cout << "++++++++++++++++++++++++block size: " << block.raw_nodes().size() << " +++++++++++++++++++++++++" << std::endl;
+             std::cout << "++++++++++++++++++++++++block target: " << block.target() << " +++++++++++++++++++++++++" << std::endl;
+         }
+    };
+    print_seg_nodes("after seg");
     // resolve nonTensor inputs/outputs
     resolveNonTensorInputs(segmented_blocks, g);
-    // print_seg_nodes("after resolve");
+    print_seg_nodes("after resolve");
 
     // register input/output torch::jit::Value for segmented graphs
     registerSegmentsOutputs(segmented_blocks, g);
-    // print_seg_nodes("after register");
+    print_seg_nodes("after register");
 
     // only return TNN subgraph
     segmented_blocks.erase(
