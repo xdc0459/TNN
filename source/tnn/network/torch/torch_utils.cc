@@ -198,5 +198,51 @@ Status IValueTensorTo(c10::IValue &ivalue, at::ScalarType scalar_type) {
 }
 
 
+Status IValueShowType(c10::IValue &ivalue) {
+    std::cout<<"IValueShowType"<<std::endl;
+    switch (ivalue.type()->kind()) {
+        case c10::TypeKind::TupleType:
+        {
+            auto tuple = ivalue.toTuple();
+            auto elements = tuple->elements();
+            for(int i=0;i<elements.size();i++) {
+                auto element = elements[i];
+                std::cout<<element.type()->expect<c10::TensorType>()->scalarType().value()<<std::endl;
+            }
+            break;
+        }
+        case c10::TypeKind::ListType:
+        {
+            auto list = ivalue.toList();
+            for(int i=0;i<list.size();i++) {
+                c10::IValue ele = list[i];
+                std::cout<<ele.type()->expect<c10::TensorType>()->scalarType().value()<<std::endl;
+            }
+            break;
+        }
+        case c10::TypeKind::DictType:
+        {
+            auto dict = ivalue.toGenericDict();
+            for(auto it= dict.begin();it != dict.end();it++) 
+            {
+                auto key = it->key();
+                auto value = it->value();
+                std::cout<<value.type()->expect<c10::TensorType>()->scalarType().value()<<std::endl;
+
+            }
+            break;
+        }
+        case c10::TypeKind::TensorType:
+        {
+            auto tensor = ivalue.toTensor();
+            std::cout<<tensor.scalar_type()<<std::endl;
+            break;
+        }
+        default:
+            return Status(TNNERR_PARAM_ERR, "Unsupported type from function IValueShowType");
+    }
+
+    return TNN_OK;
+}
 
 }

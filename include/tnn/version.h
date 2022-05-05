@@ -14,8 +14,8 @@
 #ifndef TNN_INCLUDE_TNN_VERSION_H_
 #define TNN_INCLUDE_TNN_VERSION_H_
 
-static char *branch_name_tnn = "tnn-torch-subgraph-intype";
-static char *commit_date_tnn = "2022-03-18";
-static char *commit_hash_tnn = "7c982627";
+static char *branch_name_tnn = "ocr-noquant";
+static char *commit_date_tnn = "2022-04-28";
+static char *commit_hash_tnn = "8d40e0b8";
 
 #endif //TNN_INCLUDE_TNN_VERSION_H_

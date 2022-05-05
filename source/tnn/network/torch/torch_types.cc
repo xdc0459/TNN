@@ -223,6 +223,8 @@ std::vector<c10::TypePtr> JitTypeMatcher::elements() {
 }
 
 Status attach_tensor_to_ivalue(c10::IValue &ivalue, at::TensorPtr tensor, JitTypeMatcherPtr matcher) {
+    //if (!ivalue.type()->isSubtypeOf(matcher->type()))
+    //	    std::cout<<"attach_tensor_to_ivalue fail"<<std::endl;
     TNN_CHECK(ivalue.type()->isSubtypeOf(matcher->type()), "IValue type %s != matcher type %s", 
                                                            ivalue.type()->annotation_str().c_str(), 
                                                            matcher->type()->annotation_str().c_str());
@@ -347,7 +349,7 @@ Status eval(c10::IValue &ivalue, std::string &value)
     RETURN_ON_FAIL(traverse(ele, prefix, names))
 
 Status traverse(c10::IValue &ivalue, std::string prefix, std::vector<std::string> &ret) {
-    // printf("traverse got type:%s prefix:%s\n", ivalue.type()->annotation_str().c_str(), prefix.c_str());
+    //printf("traverse got type:%s prefix:%s\n", ivalue.type()->annotation_str().c_str(), prefix.c_str());
     std::vector<std::string> names;
     switch (ivalue.type()->kind()) {
         case c10::TypeKind::TupleType:
@@ -411,6 +413,42 @@ Status IValueRouter::getAllTensorNames(c10::IValue &ivalue, std::string prefix, 
 }
 
 Status route_ivalue_to_tensor(c10::IValue &ivalue, at::TensorPtr &tensor, JitTypeMatcherPtr matcher) {
+    /*
+    if (!ivalue.type()->isSubtypeOf(matcher->type())){
+    auto a = ivalue.type()->cast<c10::TupleType>()->elements();
+    auto b = matcher->type()->castRaw<c10::TupleType>()->elements();
+    for(int i = 0; i< a.size(); i++) {
+        std::cout<<"elements:"<<i<<std::endl;    
+        auto r = a[i]->expect<c10::TensorType>();
+        auto l = b[i]->expect<c10::TensorType>();
+        std::cout<<r->scalarType().value()<<std::endl;
+        std::cout<<l->scalarType().value()<<std::endl;
+    }
+	    printf("IValue type %s != matcher type %s", 
+                                                           ivalue.type()->annotation_str().c_str(), 
+                                                           matcher->type()->annotation_str().c_str());
+    std::cout<<"route_ivalue_to_tensor fail"<<std::endl;
+} else {
+    auto t1 = ivalue.type()->cast<c10::TupleType>();//->elements();
+    auto t2 = matcher->type()->castRaw<c10::TupleType>();//->elements();
+    if (t1 != NULL && t2 != NULL) {
+        auto a = t1->elements();
+        auto b = t2->elements();
+    for(int i = 0; i< a.size(); i++) {
+        std::cout<<"elements:"<<i<<std::endl;    
+        auto r = a[i]->expect<c10::TensorType>();
+        auto l = b[i]->expect<c10::TensorType>();
+        std::cout<<r->scalarType().value()<<std::endl;
+        std::cout<<l->scalarType().value()<<std::endl;
+    }
+}
+	    printf("IValue type %s != matcher type %s", 
+                                                           ivalue.type()->annotation_str().c_str(), 
+                                                           matcher->type()->annotation_str().c_str());
+    std::cout<<"route_ivalue_to_tensor suss"<<std::endl;
+
+}
+    */
     TNN_CHECK(ivalue.type()->isSubtypeOf(matcher->type()), "IValue type %s != matcher type %s", 
                                                            ivalue.type()->annotation_str().c_str(), 
                                                            matcher->type()->annotation_str().c_str());

@@ -449,6 +449,7 @@ public:
                 layer_info->type_str = "Add";
                 break;
             case at::aten::sub:
+            case at::aten::rsub:
                 layer_info->type     = LAYER_SUB;
                 layer_info->type_str = "Sub";
                 break;
@@ -1030,23 +1031,37 @@ public:
         layer_info->type_str                  = "Gather";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
-
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
         layer_info->outputs.push_back(node->outputs()[0]->debugName());
 
         auto layer_param = std::make_shared<GatherLayerParam>();
         auto layer_res   = new GatherLayerResource();
 
-        layer_param->axis                = static_cast<int>(getValue<int64_t>(inputs[1]));
-        layer_param->data_in_resource    = false;
-        layer_param->indices_in_resource = true;
+        if (node->kind()==at::aten::select) {
+            layer_info->inputs.push_back(node->input(0)->debugName());
+            layer_param->axis                = static_cast<int>(getValue<int64_t>(node->input(1)));
+            layer_param->data_in_resource    = false;
+            layer_param->indices_in_resource = true;
 
-        int index        = getValue<int64_t>(inputs[2]);
-        auto indices_buf = RawBuffer(4, reinterpret_cast<char *>(&index), {});
-        indices_buf.SetDataType(DATA_TYPE_INT32);
-        layer_res->indices = indices_buf;
+            int index        = getValue<int64_t>(node->input(2));
+            auto indices_buf = RawBuffer(4, reinterpret_cast<char *>(&index), {});
+            indices_buf.SetDataType(DATA_TYPE_INT32);
+            layer_res->indices = indices_buf;
+        } else { // node->kind()==at::aten::embedding
+            layer_info->inputs.push_back(node->input(1)->debugName()); // indices
+            layer_param->data_in_resource    = true;
+            layer_param->indices_in_resource = false;
 
+            auto weight_buf = getValue(node->input(0));
+            //auto weight_dtype = weight_buf.GetDataType();
+            ////////////////
+            //if (weight_dtype==DATA_TYPE_FLOAT)
+            //    std::cout << "[Gather CVTer], weight_dtype==float ===" << std::endl;
+            //if (weight_dtype==DATA_TYPE_HALF)
+            //    std::cout << "[Gather CVTer], weight_dtype==half ===" << std::endl;
+            ////////////////
+
+            layer_res->data = weight_buf;
+        }
         layer_info->param = layer_param;
 
         ADD_INPUTS_AND_OUTPUTS;
@@ -1253,7 +1268,11 @@ public:
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
         auto unpack_node      = node->output(0)->uses()[0].user;
         const int output_size = unpack_node->outputs().size();
-        const int split_size  = static_cast<int>(getValue<int64_t>(node->inputs()[1]));
+        //const int split_size  = static_cast<int>(getValue<int64_t>(node->inputs()[1]));
+        int split_size  = static_cast<int>(getValue<int64_t>(node->inputs()[1]));
+        if (node->kind()==at::aten::chunk) {
+            split_size = 1;
+        }
         const int axis        = static_cast<int>(getValue<int64_t>(node->inputs()[2]));
         for (int i = 0; i < output_size; i++) {
             std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
@@ -1519,7 +1538,6 @@ class ReduceTorchConverter : public TorchOpConverter {
 public:
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
         std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
-        layer_info->type_str = "ReduceMean";
         layer_info->name = node->output(0)->debugName();
 
         layer_info->inputs.push_back(node->inputs()[0]->debugName());
@@ -1535,6 +1553,12 @@ public:
         switch (node->kind()) {
             case at::aten::mean:
                 layer_info->type = LAYER_REDUCE_MEAN;                 
+                layer_info->type_str = "ReduceMean";
+                break;
+            case at::aten::sum:
+                layer_info->type = LAYER_REDUCE_SUM;
+                layer_info->type_str = "ReduceSum";
+                break;
             default: 
                 break;
         }
@@ -1861,6 +1885,7 @@ REGISTER_TORCH_OP_CONVERTER(Conv3D, aten, conv3d)
 REGISTER_TORCH_OP_CONVERTER(_Conv, aten, _convolution)
 REGISTER_TORCH_OP_CONVERTER(Flatten, aten, flatten)
 REGISTER_TORCH_OP_CONVERTER(Gather, aten, select)
+REGISTER_TORCH_OP_CONVERTER(Gather, aten, embedding)
 REGISTER_TORCH_OP_CONVERTER(Gelu, aten, gelu)
 REGISTER_TORCH_OP_CONVERTER(HardTanh, aten, hardtanh_)
 REGISTER_TORCH_OP_CONVERTER(HardSigmoid, aten, hardsigmoid_)
@@ -1884,6 +1909,7 @@ REGISTER_TORCH_OP_CONVERTER(Sigmoid, aten, sigmoid_)
 REGISTER_TORCH_OP_CONVERTER(Size, aten, size)
 REGISTER_TORCH_OP_CONVERTER(Softmax, aten, softmax)
 REGISTER_TORCH_OP_CONVERTER(Split, aten, split)
+REGISTER_TORCH_OP_CONVERTER(Split, aten, chunk)
 REGISTER_TORCH_OP_CONVERTER(StridedSlice, aten, slice)
 REGISTER_TORCH_OP_CONVERTER(To, aten, to)
 REGISTER_TORCH_OP_CONVERTER(TopK, aten, topk)
@@ -1892,11 +1918,13 @@ REGISTER_TORCH_OP_CONVERTER(Transpose, aten, transpose)
 REGISTER_TORCH_OP_CONVERTER(Upsample, aten, upsample_nearest2d)
 REGISTER_TORCH_OP_CONVERTER(Unsqueeze, aten, unsqueeze)
 REGISTER_TORCH_OP_CONVERTER(Reduce, aten, mean)
+REGISTER_TORCH_OP_CONVERTER(Reduce, aten, sum)
 
 REGISTER_TORCH_OP_CONVERTER(List, prim, ListConstruct)
 REGISTER_TORCH_OP_CONVERTER(ListUnpack, prim, ListUnpack)
 REGISTER_TORCH_OP_CONVERTER(Squeeze, aten, squeeze)
 REGISTER_TORCH_OP_CONVERTER(Binary, aten, sub)
+// REGISTER_TORCH_OP_CONVERTER(Binary, aten, rsub)
 REGISTER_TORCH_OP_CONVERTER(Clone, aten, clone)
 // REGISTER_TORCH_OP_CONVERTER(QuantConv2D, quantized, conv2d)
 

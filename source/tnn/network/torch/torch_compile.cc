@@ -147,16 +147,19 @@ torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_inp
     }
 
     TorchOptPass(mod);
-
-    // std::cout << c10::toString(mod.get_method("forward").function().getSchema()) << std::endl;
+    std::cout<<"PengCompile"<<std::endl;
+    std::cout << c10::toString(mod.get_method("forward").function().getSchema()) << std::endl;
     auto g = mod.get_method(forward_func_name).graph();
     // std::cout << g->toString(false) << std::endl;
 
     std::unordered_map<torch::jit::Value *, torch::jit::Value *> old_to_new_g;
 
-    // for (auto input : g->inputs()) {
-    //     std::cout << input->debugName() << " | " << input->type()->repr_str() << std::endl;
-    // }
+    for (auto input : g->inputs()) {
+         std::cout << input->debugName() << " | " << input->type()->repr_str() << std::endl;
+    }
+    for (auto input : g->outputs()) {
+         std::cout << input->debugName() << " | " << input->type()->repr_str() << std::endl;
+    }
 
     try {
         auto seg_blocks = partitioning::Partition(mod, g, config);
@@ -285,8 +288,8 @@ torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_inp
     // remove constant nodes which has been convert to tnn netresource
     torch::jit::EliminateDeadCode(g);
 
-    // std::cout << "============================= the final graph ===========================" << std::endl;
-    // std::cout << g->toString() << std::endl;
+    std::cout << "============================= the final graph ===========================" << std::endl;
+    std::cout << g->toString() << std::endl;
 
     if (config.device_type == DEVICE_CUDA) {
         // release cached cuda memory
