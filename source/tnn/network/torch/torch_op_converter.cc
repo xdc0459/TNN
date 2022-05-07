@@ -486,11 +486,18 @@ public:
             const int input_index           = input0_kind == at::prim::Constant ? 1 : 0;
             layer_param->weight_input_index = weight_input_index;
             layer_info->inputs.push_back(inputs[input_index]->debugName());
-
             auto layer_res            = new EltwiseLayerResource();
             auto element_buf          = getValue(inputs[weight_input_index]);
             layer_res->element_handle = ConvertHalfHandle(element_buf);
             layer_res->element_shape  = element_buf.GetBufferDims();
+	    if (node->kind() == at::aten::rsub) {
+		    std::cout<<"PengRsub: input_index="<<weight_input_index<<std::endl;
+		    if (element_buf.GetBytesSize() != 0) {
+			    std::cout<<"scale_buf size:"<<element_buf.GetBytesSize()<<" DataCount:"<<element_buf.GetDataCount()<<std::endl;
+		    } else {
+			    std::cout<<"scale_buf size is zero"<<std::endl;
+		    }
+	    }
 
             net_resource->resource_map[layer_info->name] = std::shared_ptr<LayerResource>(layer_res);
         } else {
@@ -1912,7 +1919,7 @@ REGISTER_TORCH_OP_CONVERTER(Split, aten, split)
 REGISTER_TORCH_OP_CONVERTER(Split, aten, chunk)
 REGISTER_TORCH_OP_CONVERTER(StridedSlice, aten, slice)
 REGISTER_TORCH_OP_CONVERTER(To, aten, to)
-REGISTER_TORCH_OP_CONVERTER(TopK, aten, topk)
+// REGISTER_TORCH_OP_CONVERTER(TopK, aten, topk)
 REGISTER_TORCH_OP_CONVERTER(Transpose, aten, transpose)
 // REGISTER_TORCH_OP_CONVERTER(Upsample, aten, upsample_bilinear2d)
 REGISTER_TORCH_OP_CONVERTER(Upsample, aten, upsample_nearest2d)
@@ -1924,7 +1931,7 @@ REGISTER_TORCH_OP_CONVERTER(List, prim, ListConstruct)
 REGISTER_TORCH_OP_CONVERTER(ListUnpack, prim, ListUnpack)
 REGISTER_TORCH_OP_CONVERTER(Squeeze, aten, squeeze)
 REGISTER_TORCH_OP_CONVERTER(Binary, aten, sub)
-// REGISTER_TORCH_OP_CONVERTER(Binary, aten, rsub)
+REGISTER_TORCH_OP_CONVERTER(Binary, aten, rsub)
 REGISTER_TORCH_OP_CONVERTER(Clone, aten, clone)
 // REGISTER_TORCH_OP_CONVERTER(QuantConv2D, quantized, conv2d)
 

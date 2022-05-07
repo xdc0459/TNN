@@ -381,7 +381,7 @@ std::vector<SegmentedBlock> RemoveUnnessaryBlocks(std::vector<SegmentedBlock>& s
     };
 
     std::set<std::string> compute_node_set = {"aten::conv2d", "aten::_convolution", "aten::matmul", "aten::linear",
-                                              "aten::addmm", "aten::conv3d"};
+                                              "aten::addmm", "aten::conv3d", "aten::cat"};
     auto is_compute_block                  = [&](SegmentedBlock& seg_block) {
         for (auto& node : seg_block.raw_nodes()) {
             if (compute_node_set.count(node->kind().toQualString())) {
@@ -523,6 +523,7 @@ std::vector<SegmentedBlock> Partition(torch::jit::Module& mod, std::shared_ptr<t
         std::remove_if(segmented_blocks.begin(), segmented_blocks.end(),
                        [](SegmentedBlock& seg_block) { return seg_block.target() == SegmentedBlock::kTorch; }),
         segmented_blocks.end());
+    print_seg_nodes("after erase");
 
     // for (auto block : segmented_blocks) {
     //     printf("====================== subgraph start %d ======================\n", block.target());
@@ -536,6 +537,7 @@ std::vector<SegmentedBlock> Partition(torch::jit::Module& mod, std::shared_ptr<t
 
     std::for_each(segmented_blocks.begin(), segmented_blocks.end(),
                   [](SegmentedBlock& block) { block.check_raw_nodes(); });
+    print_seg_nodes("after check_raw_nodes");
 
     return RemoveUnnessaryBlocks(segmented_blocks);
 }
