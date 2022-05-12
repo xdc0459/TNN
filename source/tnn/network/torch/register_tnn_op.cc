@@ -46,7 +46,7 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     }
 
     if (!compiled_engine->is_init_) {
-        auto interpreter = dynamic_cast<ModelInterpreter *>(compiled_engine->ctx_->get_interpreter().get());
+        auto interpreter = dynamic_cast<ModelInterpreter *>(compiled_engine->interpreter_.get());
         interpreter->GetNetStructure()->inputs_shape_map = inputs_shape_map;
         interpreter->GetNetStructure()->input_data_type_map = inputs_data_type_map;
         InputShapesMap min_shape;
@@ -65,7 +65,7 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
 
         // ModelPacker package(interpreter->GetNetStructure(), interpreter->GetNetResource());
         // package.Pack("torch.tnnproto", "torch.tnnmodel");
-        compiled_engine->instance_->Init(compiled_engine->ctx_->get_interpreter(), min_shape, max_shape);
+        compiled_engine->instance_->Init(compiled_engine->interpreter_, min_shape, max_shape);
         compiled_engine->is_init_ = true;
     }
 
@@ -144,7 +144,7 @@ static auto TNNEngineTSRegistrtion =
     torch::class_<TNNEngine>("tnn", "Engine")
         .def_pickle(
         [](const c10::intrusive_ptr<TNNEngine>& self) -> std::vector<std::string> {
-            auto interpreter = dynamic_cast<ModelInterpreter *>(self->ctx_->get_interpreter().get());
+            auto interpreter = dynamic_cast<ModelInterpreter *>(self->interpreter_.get());
             ModelPacker packer(interpreter->GetNetStructure(), interpreter->GetNetResource());
             std::string proto_s;
             std::string model_s;

@@ -74,7 +74,7 @@ c10::intrusive_ptr<runtime::TNNEngine> ConvertBlockToInstance(partitioning::Segm
 
     TNNOptPass(net_structure, net_resource);
 
-    instance_ptr->ctx_ = ctx;
+    instance_ptr->interpreter_ = ctx->get_interpreter();
     instance_ptr->network_config_ = network_config;
     // instance_ptr->instance_->Init(ctx->get_interpreter(), inputs_shape_map);
     // set output blob names

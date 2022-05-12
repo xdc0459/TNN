@@ -98,7 +98,7 @@ struct TNNEngine : torch::CustomClassHolder {
 
     NetworkConfig network_config_;
 
-    std::shared_ptr<TorchConvertCtx> ctx_;
+    std::shared_ptr<AbstractModelInterpreter> interpreter_;
     bool is_init_ = false;
 
     TNNEngine& operator=(const TNNEngine& other); 

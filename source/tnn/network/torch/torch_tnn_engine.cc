@@ -120,10 +120,17 @@ TNNEngine::TNNEngine(std::vector<std::string> &serialize) {
     instance_ = std::make_shared<Instance>(network_config, model_config);
 
     if (min_input_shape.size() == 0 && max_input_shape.size() == 0) {
-        ctx_->set_interpreter(interpreter_ptr);
+        // ctx_->set_interpreter(interpreter_ptr);
+        interpreter_ = interpreter_ptr;
     } else {
         dynamic_cast<ModelInterpreter *>(interpreter)->GetNetStructure()->inputs_shape_map = max_input_shape;
         instance_->Init(interpreter_ptr, min_input_shape, max_input_shape);
+        // ctx_->set_interpreter(interpreter_ptr);
+        interpreter_ = interpreter_ptr;
+        for (auto &name : input_names) {
+            min_inputs_shape.emplace_back(min_input_shape[name]);
+            max_inputs_shape.emplace_back(max_input_shape[name]);
+        }
         is_init_ = true;
     }
     network_config_ = network_config;
