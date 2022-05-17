@@ -252,18 +252,28 @@ class Module:
             self.input_names = list(self.instance.GetAllInputBlobs().keys())
 
     def forward(self, *inputs, rtype="list"):
+        input_mats = {}
         if len(inputs) > 1:
             for index, value in enumerate(inputs):
-                self.instance.SetInputMat(Mat(value), MatConvertParam(), self.input_names[index])
+                input_mats[self.input_names[index]] = Mat(value)
         else:
             if isinstance(inputs[0], tuple) or isinstance(inputs[0], list):
                 for index, value in enumerate(inputs[0]):
-                    self.instance.SetInputMat(Mat(value), MatConvertParam(), self.input_names[index])
+                    input_mats[self.input_names[index]] = Mat(value)
             elif isinstance(inputs[0], dict):
                 for key, value in inputs[0].items():
-                    self.instance.SetInputMat(Mat(value), MatConvertParam(), key)
+                    input_mats[key] = Mat(value)
             else:
-                self.instance.SetInputMat(Mat(inputs[0]), MatConvertParam()) 
+                input_mats[self.input_names[0]] = Mat(inputs[0])
+                
+        input_shapes = {}
+        for key, value in input_mats.items():
+            input_shapes[key] = value.GetDims()
+        self.instance.Reshape(input_shapes) 
+        
+        for key, value in input_mats.items():
+            self.instance.SetInputMat(value, MatConvertParam(), key) 
+      
         self.instance.Forward()
         output_blobs = self.instance.GetAllOutputBlobs()
         output = []
