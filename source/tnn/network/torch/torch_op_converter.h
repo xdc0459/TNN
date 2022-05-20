@@ -169,6 +169,34 @@ static RawBuffer getValue(const torch::jit::Value* value) {
     return RawBuffer();
 }
 
+
+// Get Real effective Input Values of node.
+// For Example,
+// %68 : int = aten::size(%input_ids.1, %8)
+// %seq_length.1 : Tensor = prim::NumToTensor(%68)
+// %70 : Tensor = aten::add(%seq_length.1, %36, %8)
+// In this paragraph, effective input values of node aten::add
+// should be %68, not %seq_length.1.
+static torch::jit::Value* GetInputValue(const torch::jit::Node* node, int idx) {
+    torch::jit::Value* ret;
+    auto input = node->input(idx);
+    auto input_kind = input->node()->kind();
+    if (input_kind == at::prim::NumToTensor || input_kind == at::aten::Int) {
+        GetInputValue(input->node(), 0);
+    }
+    return input;
+}
+
+static std::vector<torch::jit::Value*> GetInputValues(const torch::jit::Node* node) {
+    std::vector<torch::jit::Value*> ret;
+    auto inputs = node->inputs();
+    for (int i=0; i<node->inputs().size(); i++) {
+        ret.push_back(GetInputValue(node, i));
+    }
+    return ret;
+}
+
+
 class TorchOpConverter {
 public:
     virtual bool IsSupported(const torch::jit::Node *node) {return true;};

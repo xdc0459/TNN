@@ -183,5 +183,8 @@ template void ScaleBias<__half, float>(const __half* src, float* dst, cudaStream
 template void ScaleBias<float, __half>(const float* src, __half* dst, cudaStream_t stream, float* scale,
     float* bias, int batch, int channels, int hw);
 
+template void ScaleBias<__half, __half>(const __half* src, __half* dst, cudaStream_t stream, float* scale,
+    float* bias, int batch, int channels, int hw);
+
 }  //  namespace TNN_NS
 

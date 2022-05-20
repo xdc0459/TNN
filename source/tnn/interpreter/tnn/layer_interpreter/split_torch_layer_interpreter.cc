@@ -28,6 +28,7 @@ namespace TNN_NS {
 
         p->slices.clear();
         GET_INT_N_INTO_VEC(p->slices, slice_count);
+        GET_INT_1_OR_DEFAULT(p->is_split_specified, 0);
 
         GET_INT_1(p->split_size);
 
@@ -46,6 +47,7 @@ namespace TNN_NS {
         for (auto item : split_torch_param->slices) {
             output_stream << item << " ";
         }
+        output_stream << int(split_torch_param->is_split_specified) << " ";
         output_stream << split_torch_param->split_size << " ";
 
         return TNN_OK;

@@ -56,7 +56,7 @@ Status PermuteV2LayerInterpreter::SaveProto(std::ostream& output_stream, LayerPa
     // for (auto item : layer_param->orders)
     //     output_stream << item << " ";
     output_stream << layer_param->dim0 << " ";
-    output_stream << layer_param->dim0 << " ";
+    output_stream << layer_param->dim1 << " ";
 
     return TNN_OK;
 }

@@ -81,7 +81,7 @@ CoreMLNetwork::~CoreMLNetwork() {
 }
 
 Status CoreMLNetwork::Init(NetworkConfig &net_config, ModelConfig &model_config, AbstractModelInterpreter *interpreter,
-                           InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, bool enable_const_folder) {
+                           InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, InputDataTypeMap inputs_data_type, bool enable_const_folder) {
     if (!HasAppleNPU()) {
         return Status(TNNERR_COMMON_ERROR, "Apple device dont have NeuralEngine");
     }

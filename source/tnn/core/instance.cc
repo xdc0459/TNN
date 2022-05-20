@@ -41,11 +41,11 @@ Instance::~Instance() {
     DeInit();
 }
 
-Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, InputShapesMap inputs_shape) {
-    return Init(interpreter, inputs_shape, inputs_shape);
+Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, InputShapesMap inputs_shape, InputDataTypeMap inputs_data_type) {
+    return Init(interpreter, inputs_shape, inputs_shape, inputs_data_type);
 }
 
-Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape) {
+Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, InputDataTypeMap inputs_data_type) {
     
     auto type = net_config_.device_type;
     if(type == DEVICE_APPLE_NPU) {
@@ -84,7 +84,7 @@ Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, Inp
         return Status(TNNERR_NET_ERR, "network_ is nil, network_type may not support");
     }
     if (net_config_.device_type == DEVICE_CUDA) {
-        auto ret = network_->Init(net_config_, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, false);
+        auto ret = network_->Init(net_config_, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, inputs_data_type, false);
         if (ret == TNN_OK) {
             return ret;
         }
@@ -99,7 +99,7 @@ Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, Inp
         auto const_folder = std::make_shared<ConstFolder>();
         auto folder_net_config = net_config_;
         folder_net_config.share_memory_mode = SHARE_MEMORY_MODE_DEFAULT;
-        auto status = const_folder->Init(folder_net_config, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape);
+        auto status = const_folder->Init(folder_net_config, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, inputs_data_type);
         RETURN_ON_NEQ(status, TNN_OK);
 
         if (min_inputs_shape.size() != 0) {
@@ -121,7 +121,7 @@ Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, Inp
     }
 
     network_ = NetworkImplManager::GetNetworkImpl(network_type);
-    auto ret = network_->Init(net_config_, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, true);
+    auto ret = network_->Init(net_config_, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, inputs_data_type, true);
     RETURN_ON_NEQ(ret, TNN_OK);
 
     return TNN_OK;

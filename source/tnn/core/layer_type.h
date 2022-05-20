@@ -232,6 +232,9 @@ enum LayerType {
     LAYER_NORM                                              = 341,
     LAYER_CLAMPMIN                                          = 342,
     LAYER_EXPANDAS                                          = 343,
+    LAYER_FLATTENTORCH                                      = 344,
+    LAYER_OR                                                = 345,
+    LAYER_XOR                                               = 346,
 
     LAYER_BLOB_SCALE                                        = 600,
 

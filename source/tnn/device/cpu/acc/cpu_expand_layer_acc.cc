@@ -54,8 +54,7 @@ Status CpuExpandLayerAcc::Forward(const std::vector<Blob *> &inputs, const std::
     auto input_dims = input_blob->GetBlobDesc().dims;
     
     const int ele_size = DataTypeUtils::GetBytesSize(outputs[0]->GetBlobDesc().data_type);
-    
-    
+
     int diff = output_dims.size() - input_dims.size();
     
     char *input_data  = reinterpret_cast<char *>(input_blob->GetHandle().base);

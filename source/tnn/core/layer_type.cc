@@ -227,6 +227,8 @@ static std::map<std::string, LayerType> global_layer_type_map = {
     {"Norm", LAYER_NORM},
     {"Clampmin", LAYER_CLAMPMIN},
     {"Expandas", LAYER_EXPANDAS},
+    {"Or", LAYER_OR},
+    {"Xor", LAYER_XOR},
     // LAYER_INT8_RANGE
     // LAYER_TRT_ENGINE
 
@@ -259,6 +261,7 @@ static std::map<std::string, LayerType> global_layer_type_map = {
     {"PermuteV2", LAYER_PERMUTEV2},
     {"Clone", LAYER_CLONE},
     {"ReshapeTorch", LAYER_RESHAPETORCH},
+    {"FlattenTorch", LAYER_FLATTENTORCH},
     {"QuantizedReshape", LAYER_RESHAPE},
     {"QuantizedPermute", LAYER_PERMUTE},
 

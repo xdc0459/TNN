@@ -207,6 +207,13 @@ struct RangeLayerParam : public LayerParam {
     RangeData delta = {1};
     // RangeData delta = { .i = 1};
 
+    // Added for TNN-Torch, in TNN-torch,
+    // num of inputs of aten::arange may vary from 0-3, in which cases,
+    // order of inputs is not certain.
+    int start_index = -1;
+    int limit_index = -1;
+    int delta_index = -1;
+
     PARAM_COPY(RangeLayerParam)
 };
 
@@ -665,6 +672,13 @@ struct FlattenLayerParam : public LayerParam {
     int axis = 1;
 
     PARAM_COPY(FlattenLayerParam)
+};
+
+struct FlattenTorchLayerParam : public LayerParam {
+    int start_dim = 0;
+    int end_dim = -1;
+
+    PARAM_COPY(FlattenTorchLayerParam)
 };
 
 struct EinsumLayerParam : public LayerParam {

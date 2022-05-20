@@ -84,6 +84,7 @@ namespace test {
         NetworkConfig network_config = GetNetworkConfig();
 
         InputShapesMap input_shape = GetInputShapesMap();
+        InputDataTypeMap input_data_type = GetInputDataTypeMap();
 
         srand(102);
 
@@ -91,7 +92,7 @@ namespace test {
         Status ret = net.Init(model_config);
         model_config.params.clear();
         if (CheckResult("init tnn", ret)) {
-            auto instance = net.CreateInst(network_config, ret, input_shape);
+            auto instance = net.CreateInst(network_config, ret, input_shape, input_data_type);
             if (!CheckResult("create instance", ret)) {
                 return ret;
             }
@@ -107,7 +108,7 @@ namespace test {
 
             //create mat and converter
             MatMap input_mat_map;
-            CreateBlobMatMap(input_blob_map, FLAGS_it, input_mat_map);
+            CreateBlobMatMap(input_blob_map, FLAGS_if, input_mat_map);
             InitInputMatMap(input_mat_map);
             auto input_converters_map = CreateBlobConverterMap(input_blob_map);
             auto input_params_map = CreateConvertParamMap(input_mat_map, true);
@@ -241,7 +242,7 @@ namespace test {
         printf("    -et \"<enable tune>\t%s \n", enable_tune_message);
         printf("    -sc \"<input scale>\t%s \n", scale_message);
         printf("    -bi \"<input bias>\t%s \n", bias_message);
-	printf("    -tt \"<number>\"        \t%s \n", test_thread_num_message);
+        printf("    -tt \"<number>\"        \t%s \n", test_thread_num_message);
     }
 
     void SetCpuAffinity() {
@@ -305,6 +306,39 @@ namespace test {
             }
         }
         return input_shape;
+    }
+
+    InputDataTypeMap GetInputDataTypeMap() {
+        InputDataTypeMap input_data_type;
+        if(!FLAGS_it.empty()) {
+            std::string input_data_type_message(FLAGS_it);
+            std::vector<std::string> input_data_type_strs;
+            std::string delimiter = ";";
+
+            size_t pos = 0;
+            std::string token;
+            while ((pos = input_data_type_message.find(delimiter)) != std::string::npos) {
+                token = input_data_type_message.substr(0, pos);
+                input_data_type_strs.push_back(token);
+                input_data_type_message.erase(0, pos + delimiter.length());
+            }
+            if (input_data_type_message.length() != 0) {
+                input_data_type_strs.push_back(input_data_type_message);
+            }
+
+            for (auto input_data_type_str : input_data_type_strs) {
+                std::string delimiter = ":";
+                std::ptrdiff_t p1 = 0, p2;
+                p2 = input_data_type_str.find(delimiter, p1);
+                std::string input_name = input_data_type_str.substr(p1, p2-p1);
+                p1 = p2 + 1;
+                
+                delimiter = ";";
+                p2 = input_data_type_str.find(delimiter, p1);
+                input_data_type[input_name] = static_cast<DataType>(std::stoi(input_data_type_str.substr(p1, p2-p1)));
+            }
+        }
+        return input_data_type;
     }
 
     ModelConfig GetModelConfig() {
@@ -425,6 +459,9 @@ namespace test {
             } else if (blob_desc.data_type == DATA_TYPE_INT64) {
                 data_type = DATA_TYPE_INT64;
                 mat_type = NC_INT64;
+            } else if (blob_desc.data_type == DATA_TYPE_HALF) {
+                data_type = DATA_TYPE_HALF;
+                mat_type = RESERVED_FP16_TEST;
             }
 
             // check whether mat need to update
@@ -492,6 +529,8 @@ namespace test {
                         reinterpret_cast<int32_t*>(mat_data)[i] = rand() % 2;
                     } else if (mat_type == RESERVED_INT8_TEST) {
                         reinterpret_cast<int8_t*>(mat_data)[i] = (rand() % 256) - 128;
+                    } else if (mat_type == RESERVED_FP16_TEST) {
+                        reinterpret_cast<fp16_t*>(mat_data)[i] = fp16_t((rand() % 256) / 128.0f);
                     } else {
                         reinterpret_cast<uint8_t*>(mat_data)[i] = (rand() % 256);
                     }
@@ -504,6 +543,10 @@ namespace test {
                         input_stream >> reinterpret_cast<float*>(mat_data)[i];
                     } else if (mat_type == NC_INT32) {
                         input_stream >> reinterpret_cast<int32_t*>(mat_data)[i];
+                    } else if (mat_type == RESERVED_FP16_TEST) {
+                        float val;
+                        input_stream >> val;
+                        reinterpret_cast<fp16_t*>(mat_data)[i] = (fp16_t)val;
                     } else if (mat_type == RESERVED_INT8_TEST) {
                         int val;
                         input_stream >> val;
@@ -575,8 +618,10 @@ namespace test {
                     std::fill(param.scale.begin(), param.scale.end(), 1.0f);
                 } else if(IsImageMat(mat_type)) {
                     std::fill(param.scale.begin(), param.scale.end(), 1.0f / 255.0f);
-                } else if(dims[1] > 4) {
-                    param.scale = std::vector<float>(dims[1], 1);
+                } else if(dims.empty() || dims.size()<2) {
+                    param.scale = std::vector<float>(1, 1);
+                } else if(dims.size()>=2 && dims[1] > 4) {
+                    param.scale = std::vector<float>(dims[1], 1.0f);
                 }
             }
 
@@ -588,7 +633,9 @@ namespace test {
                     std::fill(param.bias.begin(), param.bias.end(), 0);
                 } else if(IsImageMat(mat_type)) {
                     std::fill(param.bias.begin(), param.bias.end(), 0);
-                } else if(dims[1] > 4) {
+                } else if(dims.empty() || dims.size()<2) {
+                    param.bias  = std::vector<float>(1, 0);
+                } else if(dims.size()>=2 && dims[1] > 4) {
                     param.bias  = std::vector<float>(dims[1], 0);
                 }
             }
@@ -663,6 +710,11 @@ namespace test {
                 int64_t * data = reinterpret_cast<int64_t*>(mat->GetData());
                 for (int c = 0; c < data_count; ++c) {
                     f << data[c] << std::endl;
+                }
+            } else if (mat->GetMatType() == RESERVED_FP16_TEST) {
+                fp16_t * data = reinterpret_cast<fp16_t*>(mat->GetData());
+                for (int c = 0; c < data_count; ++c) {
+                    f << std::fixed << std::setprecision(6) << float(data[c]) << std::endl;
                 }
             } else {
                 float* data = reinterpret_cast<float*>(mat->GetData());
