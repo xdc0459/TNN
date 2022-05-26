@@ -74,7 +74,7 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         compiled_engine->instance_->SetCommandQueue(stream.stream());
     }
 
-    compiled_engine->instance_->Reshape(inputs_shape_map);
+    Status status = compiled_engine->instance_->Reshape(inputs_shape_map);
 
     BlobMap input_blobs;
     BlobMap output_blobs;
@@ -135,7 +135,7 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     compiled_engine->instance_->SetForwardMemory(reinterpret_cast<void*>(forward_tensor->data_ptr<float>()));
 
     // use torch memory management
-    compiled_engine->instance_->Forward();
+    Status ret = compiled_engine->instance_->Forward();
 
     return outputs;
 }
