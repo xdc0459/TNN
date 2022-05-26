@@ -363,9 +363,13 @@ namespace test {
 
         config.enable_tune_kernel = FLAGS_et;
 #if defined(__ANDROID__)
-        config.cache_path = "/data/local/tmp/";
+	if(FLAGS_cp.empty()) {
+            config.cache_path = "/data/local/tmp/";
+	} else {
+            config.cache_path = FLAGS_cp;
+	}
 #else
-        config.cache_path = "";
+        config.cache_path = FLAGS_cp;
 #endif
 
         // Device Type: ARM, OPENECL, ...

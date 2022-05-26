@@ -71,6 +71,8 @@ static const char bias_message[] = "input bias: b0,b1,b2,...)";
 
 static const char test_thread_num_message[] = "set test thread num, default is 1";
 
+static const char cache_path_message[] = "cache path to store possible cache models or opt kernel";
+
 DECLARE_bool(h);
 
 DECLARE_string(mt);
@@ -116,6 +118,8 @@ DECLARE_string(sc);
 DECLARE_string(bi);
 
 DECLARE_int32(tt);
+
+DECLARE_string(cp);
 
 }  // namespace TNN_NS
 
