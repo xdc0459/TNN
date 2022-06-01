@@ -34,6 +34,10 @@ public:
     // @brief virtual default destructor
     virtual ~AbstractNetwork() {}
 
+    // @brief init network wrapper, record min and max input shapes
+    Status InitWrapper(NetworkConfig &net_config, ModelConfig &model_config, AbstractModelInterpreter *interpreter,
+        InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, bool enable_const_folder=true);
+
     // @brief init network with net cfg and net res.
     // @param net_cfg
     // @param net_res
@@ -60,6 +64,8 @@ public:
     //  an error code.
     //
     virtual Status SetForwardMemory(void *memory) = 0;
+
+    Status ReshapeWrapper(const InputShapesMap &inputs);
 
     // @brief network infer
     virtual Status Reshape(const InputShapesMap &inputs) = 0;
@@ -106,6 +112,10 @@ public:
     virtual void StartProfile();
     virtual std::shared_ptr<ProfileResult> FinishProfile();
 #endif
+
+protected:
+    InputShapesMap min_inputs_shape_;
+    InputShapesMap max_inputs_shape_;
 };
 
 class AbstractNetworkImplFactory {

@@ -144,9 +144,6 @@ private:
 
     static std::unordered_map<std::string, TensorRTPluginLayerBuilder*> m_plugin_layer_name_map;
     static std::mutex network_mutex;
-
-    InputShapesMap min_inputs_shape_;
-    InputShapesMap max_inputs_shape_;
 };
 
 }  //  namespace TNN_NS

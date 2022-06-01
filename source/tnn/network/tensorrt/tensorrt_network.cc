@@ -217,18 +217,6 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
     int bind_num = m_trt_engine->getNbBindings();
     this->m_trt_bindings = new void*[bind_num];
 
-    // init min max shapes
-    for(auto iter : inputs) {
-        max_inputs_shape_[iter.first] = iter.second->GetBlobDesc().dims;
-        if(min_inputs_shape.count(iter.first) > 0) {
-            min_inputs_shape_[iter.first] = min_inputs_shape[iter.first];
-        } else {
-            min_inputs_shape_[iter.first] = iter.second->GetBlobDesc().dims;
-        }
-        
-    }
-
-
     ret = ReshapeLayers();
     if (ret != TNN_OK) {
         LOGE("tensorrt network reshape layers failed\n");
