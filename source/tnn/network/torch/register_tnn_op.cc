@@ -21,6 +21,8 @@
 #include "tnn/interpreter/tnn/model_packer.h"
 #include <cuda_runtime.h>
 
+#include <stdexcept>
+
 #include "c10/cuda/CUDAStream.h"
 #include "tnn/utils/blob_dump_utils.h"
 #include "tnn/interpreter/tnn/model_interpreter.h"
@@ -74,7 +76,10 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         compiled_engine->instance_->SetCommandQueue(stream.stream());
     }
 
-    Status status = compiled_engine->instance_->Reshape(inputs_shape_map);
+    auto status = compiled_engine->instance_->Reshape(inputs_shape_map);
+    if(status != TNN_OK) {
+        throw std::runtime_error("input shapes error \n");
+    }
 
     BlobMap input_blobs;
     BlobMap output_blobs;
