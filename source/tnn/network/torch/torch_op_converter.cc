@@ -133,7 +133,7 @@ class Conv3DTorchConverter : public TorchOpConverter {
     }
 };
 
-// func: _convolution(Tensor input, Tensor weight, Tensor? bias, int[] stride, int[] padding, int[] dilation, bool transposed, 
+// func: _convolution(Tensor input, Tensor weight, Tensor? bias, int[] stride, int[] padding, int[] dilation, bool transposed,
 //                    int[] output_padding, int groups, bool benchmark, bool deterministic, bool cudnn_enabled, bool allow_tf32) -> Tensor
 class _ConvTorchConverter : public TorchOpConverter {
 public:
@@ -141,14 +141,14 @@ public:
     bool IsSupported(const torch::jit::Node *node) {
         const auto& inputs = node->inputs();
         const auto transposed = getValue<bool>(inputs[6]);
-        return !transposed; 
+        return !transposed;
     }
   */
 
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
         const auto& inputs = node->inputs();
         const auto transposed = getValue<bool>(inputs[6]);
-        
+
         std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
         layer_info->type = transposed ? LAYER_DECONVOLUTION : LAYER_CONVOLUTION;;
         layer_info->type_str = transposed ? "Deconvolution" : "Convolution";
@@ -237,7 +237,7 @@ public:
             const auto padding = getValue<std::vector<int64_t>>(inputs[3]);
             const auto dialation = getValue<std::vector<int64_t>>(inputs[4]);
             const auto ceil_mode = getValue<bool>(inputs[5]);
-            
+
             layer_param->pad_type = -1;
             layer_param->kernels_params = {(int)kernel_size[1], (int)kernel_size[0]};
             layer_param->strides = {(int)stride[1], (int)stride[0]};
@@ -290,7 +290,7 @@ public:
             const auto padding = getValue<std::vector<int64_t>>(inputs[3]);
             const auto dialation = getValue<std::vector<int64_t>>(inputs[4]);
             const auto ceil_mode = getValue<bool>(inputs[5]);
-            
+
             layer_param->pad_type = -1;
             layer_param->kernels_params = {(int)kernel_size[2], (int)kernel_size[1], (int)kernel_size[0]};
             layer_param->strides = {(int)stride[2], (int)stride[1], (int)stride[0]};
@@ -490,22 +490,22 @@ public:
             auto element_buf          = getValue(inputs[weight_input_index]);
             layer_res->element_handle = ConvertHalfHandle(element_buf);
             layer_res->element_shape  = element_buf.GetBufferDims();
-	    if (node->kind() == at::aten::rsub) {
-		    std::cout<<"PengRsub: input_index="<<weight_input_index<<std::endl;
-		    if (element_buf.GetBytesSize() != 0) {
-			    std::cout<<"scale_buf size:"<<element_buf.GetBytesSize()<<" DataCount:"<<element_buf.GetDataCount()<<std::endl;
-		    } else {
-			    std::cout<<"scale_buf size is zero"<<std::endl;
-		    }
-	    }
-
+            // For rsub, weight_input_index is different
+            if(node->kind() == at::aten::rsub)
+                layer_param->weight_input_index = 0;
             net_resource->resource_map[layer_info->name] = std::shared_ptr<LayerResource>(layer_res);
         } else {
             layer_param->weight_input_index = -1;
-            for (auto &input : node->inputs()) {
-                layer_info->inputs.push_back(input->debugName());
-                if (layer_info->inputs.size() == 2) {
-                    break;
+            // For rsub, this case doesn't test
+            if(node->kind() == at::aten::rsub) {
+                layer_info->inputs.push_back(node->inputs()[1]->debugName());
+                layer_info->inputs.push_back(node->inputs()[0]->debugName());
+            } else {
+                for (auto &input : node->inputs()) {
+                    layer_info->inputs.push_back(input->debugName());
+                    if (layer_info->inputs.size() == 2) {
+                        break;
+                    }
                 }
             }
         }
@@ -566,6 +566,223 @@ public:
 
         net_structure->layers.push_back(layer_info);
 
+        return TNN_OK;
+    }
+};
+
+// Decompose is used to split fused op to small ops.
+// Fused op uses Plugin for implementation, which cannot use TensorRT Myelin optimization.
+// Now, we just decompose aten::layer_norm.
+class DecomposeTorchConverter : public TorchOpConverter {
+public:
+    Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
+        const auto &inputs = node->inputs();
+        const auto input   = inputs[0];
+        const auto weight  = inputs[2];
+        const auto bias    = inputs[3];
+        const auto eps     = inputs[4];
+        const auto normalized_shape = inputs[1];
+        const auto pre_layer_name = node->output(0)->debugName();
+
+        auto reduce_layer_param = std::make_shared<ReduceLayerParam>();
+        auto axis = getValue<std::vector<int64_t>>(normalized_shape);
+        for(int i = 1; i <= axis.size(); i++) {
+            reduce_layer_param->axis.push_back(-i);
+        }
+        reduce_layer_param->keep_dims = true;
+
+        // E[x]
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type = LAYER_REDUCE_MEAN;
+            layer_info->type_str = "ReduceMean";
+            layer_info->name = pre_layer_name + "_Avg";
+
+            layer_info->inputs.push_back(input->debugName());
+            layer_info->outputs.push_back(pre_layer_name + "_Avg");
+
+            layer_info->param = reduce_layer_param;
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+            net_structure->layers.push_back(layer_info);
+        }
+
+        // X-E[x]
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type     = LAYER_SUB;
+            layer_info->type_str = "Sub";
+            layer_info->name = pre_layer_name + "_Sub";
+
+            auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
+            layer_param->weight_input_index = -1;
+            layer_info->inputs.push_back(input->debugName());
+            layer_info->inputs.push_back(pre_layer_name + "_Avg");
+            layer_info->outputs.push_back(pre_layer_name + "_Sub");
+
+
+            layer_info->param = layer_param;
+
+            net_structure->layers.push_back(layer_info);
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+        }
+
+        // POW(X-E(x))
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type                      = LAYER_POWER;
+            layer_info->type_str                  = "Power";
+            layer_info->name                      = pre_layer_name + "_Power";
+
+            layer_info->inputs.push_back(pre_layer_name + "_Sub");
+            layer_info->outputs.push_back(pre_layer_name + "_Power");
+            auto layer_param         = std::make_shared<PowLayerParam>();
+            layer_param->exponent = 2.0;
+            layer_info->param = layer_param;
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+            net_structure->layers.push_back(layer_info);
+        }
+
+        // VAR: MEAN(POW(X-E(X)))
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type = LAYER_REDUCE_MEAN;
+            layer_info->type_str = "ReduceMean";
+            layer_info->name = pre_layer_name + "_Var";
+
+            layer_info->inputs.push_back(pre_layer_name + "_Power");
+            layer_info->outputs.push_back(pre_layer_name + "_Var");
+
+            layer_info->param = reduce_layer_param;
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+            net_structure->layers.push_back(layer_info);
+
+        }
+
+        // VAR + eps
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type     = LAYER_ADD;
+            layer_info->type_str = "Add";
+            layer_info->name = pre_layer_name + "_Add";
+
+            auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
+            layer_param->weight_input_index = 1;
+            auto layer_res            = new EltwiseLayerResource();
+            auto element_buf          = getValue(eps);
+            layer_res->element_handle = ConvertHalfHandle(element_buf);
+            layer_res->element_shape  = element_buf.GetBufferDims();
+
+            net_resource->resource_map[layer_info->name] = std::shared_ptr<LayerResource>(layer_res);
+
+            layer_info->inputs.push_back(pre_layer_name + "_Var");
+            layer_info->outputs.push_back(pre_layer_name + "_Add");
+
+
+            layer_info->param = layer_param;
+
+            net_structure->layers.push_back(layer_info);
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+        }
+
+        // SQRT (VAR + eps)
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type                      = LAYER_SQRT;
+            layer_info->type_str                  = "Sqrt";
+            layer_info->name                      = pre_layer_name + "_Sqrt";
+
+            layer_info->inputs.push_back(pre_layer_name + "_Add");
+            layer_info->outputs.push_back(pre_layer_name + "_Sqrt");
+
+            layer_info->param = std::make_shared<LayerParam>();
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+            net_structure->layers.push_back(layer_info);
+
+        }
+
+        //div_out: (x - E[x]) / sqrt((var + eps))
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type     = LAYER_DIV;
+            layer_info->type_str = "Div";
+            layer_info->name = pre_layer_name + "_Div";
+
+            auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
+            layer_param->weight_input_index = -1;
+            layer_info->inputs.push_back(pre_layer_name + "_Sub");
+            layer_info->inputs.push_back(pre_layer_name + "_Sqrt");
+            layer_info->outputs.push_back(pre_layer_name + "_Div");
+
+
+            layer_info->param = layer_param;
+
+            net_structure->layers.push_back(layer_info);
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+        }
+
+        if (!toIValue(weight) || !toIValue(bias))
+            return TNN_OK;
+
+        // gamma * div_out
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type     = LAYER_MUL;
+            layer_info->type_str = "Mul";
+            layer_info->name = pre_layer_name + "_Mul";
+
+            auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
+            layer_param->weight_input_index = -1;
+            layer_info->inputs.push_back(pre_layer_name + "_Div");
+            layer_info->inputs.push_back(weight->debugName());
+            layer_info->outputs.push_back(pre_layer_name + "_Mul");
+
+
+            layer_info->param = layer_param;
+
+            net_structure->layers.push_back(layer_info);
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+        }
+
+        // gamma * div_out + beta
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type     = LAYER_ADD;
+            layer_info->type_str = "Add";
+            layer_info->name = node->output(0)->debugName();
+
+            auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
+            layer_param->weight_input_index = -1;
+            layer_info->inputs.push_back(pre_layer_name + "_Mul");
+            layer_info->inputs.push_back(bias->debugName());
+            layer_info->outputs.push_back(node->output(0)->debugName());
+
+
+            layer_info->param = layer_param;
+
+            net_structure->layers.push_back(layer_info);
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+        }
+
+        net_resource->constant_map[weight->debugName()] = std::make_shared<RawBuffer>(getValue(weight)); // weight
+        net_resource->constant_map[bias->debugName()] = std::make_shared<RawBuffer>(getValue(bias)); // bias
         return TNN_OK;
     }
 };
@@ -721,7 +938,7 @@ public:
         const auto& inputs     = node->inputs();
         const auto input0_kind = inputs[0]->node()->kind();
         const auto input1_kind = inputs[1]->node()->kind();
-        
+
         auto layer_res         = new MatMulLayerResource();
         auto layer_param       = std::make_shared<MatMulLayerParam>();
 
@@ -1048,7 +1265,6 @@ public:
             layer_param->axis                = static_cast<int>(getValue<int64_t>(node->input(1)));
             layer_param->data_in_resource    = false;
             layer_param->indices_in_resource = true;
-
             int index        = getValue<int64_t>(node->input(2));
             auto indices_buf = RawBuffer(4, reinterpret_cast<char *>(&index), {});
             indices_buf.SetDataType(DATA_TYPE_INT32);
@@ -1059,12 +1275,12 @@ public:
             layer_param->indices_in_resource = false;
 
             auto weight_buf = getValue(node->input(0));
-            //auto weight_dtype = weight_buf.GetDataType();
+            auto weight_dtype = weight_buf.GetDataType();
             ////////////////
-            //if (weight_dtype==DATA_TYPE_FLOAT)
-            //    std::cout << "[Gather CVTer], weight_dtype==float ===" << std::endl;
-            //if (weight_dtype==DATA_TYPE_HALF)
-            //    std::cout << "[Gather CVTer], weight_dtype==half ===" << std::endl;
+            if (weight_dtype==DATA_TYPE_FLOAT)
+                std::cout << "[Gather CVTer], weight_dtype==float ===" << std::endl;
+            if (weight_dtype==DATA_TYPE_HALF)
+                std::cout << "[Gather CVTer], weight_dtype==half ===" << std::endl;
             ////////////////
 
             layer_res->data = weight_buf;
@@ -1129,6 +1345,27 @@ public:
         std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
         layer_info->type = LAYER_SIGMOID;
         layer_info->type_str = "Sigmoid";
+        layer_info->name = node->output(0)->debugName();
+
+        layer_info->inputs.push_back(node->inputs()[0]->debugName());
+        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+
+        layer_info->param = std::make_shared<LayerParam>();
+
+        ADD_INPUTS_AND_OUTPUTS;
+
+        net_structure->layers.push_back(layer_info);
+
+        return TNN_OK;
+    }
+};
+
+class SqrtTorchConverter : public TorchOpConverter {
+public:
+    Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
+        std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+        layer_info->type = LAYER_SQRT;
+        layer_info->type_str = "Sqrt";
         layer_info->name = node->output(0)->debugName();
 
         layer_info->inputs.push_back(node->inputs()[0]->debugName());
@@ -1528,7 +1765,7 @@ public:
                 break;
             default:
                 break;
-        } 
+        }
 
         layer_info->param = layer_param;
 
@@ -1559,14 +1796,14 @@ public:
 
         switch (node->kind()) {
             case at::aten::mean:
-                layer_info->type = LAYER_REDUCE_MEAN;                 
+                layer_info->type = LAYER_REDUCE_MEAN;
                 layer_info->type_str = "ReduceMean";
                 break;
             case at::aten::sum:
                 layer_info->type = LAYER_REDUCE_SUM;
                 layer_info->type_str = "ReduceSum";
                 break;
-            default: 
+            default:
                 break;
         }
 
@@ -1793,7 +2030,7 @@ public:
             const auto input = node->outputs();
             const auto outputs = node->outputs();
             const int num_dims = outputs.size();
-            
+
             for (int dim=0; dim<num_dims; dim++) {
                 std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
                 layer_info->type                 = LAYER_GATHER;
@@ -1821,7 +2058,7 @@ public:
                 net_resource->resource_map[layer_info->name] = layer_res;
             }
         }
-        
+
         return TNN_OK;
     }
 };
@@ -1844,6 +2081,27 @@ public:
         layer_param->axes = {static_cast<int>(getValue<int64_t>(inputs[1]))};
 
         layer_info->param = layer_param;
+
+        ADD_INPUTS_AND_OUTPUTS;
+
+        net_structure->layers.push_back(layer_info);
+
+        return TNN_OK;
+    }
+};
+
+class TanhTorchConverter : public TorchOpConverter {
+public:
+    Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
+        std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+        layer_info->type = LAYER_TANH;
+        layer_info->type_str = "Tanh";
+        layer_info->name = node->output(0)->debugName();
+
+        layer_info->inputs.push_back(node->inputs()[0]->debugName());
+        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+
+        layer_info->param = std::make_shared<LayerParam>();
 
         ADD_INPUTS_AND_OUTPUTS;
 
@@ -1898,7 +2156,8 @@ REGISTER_TORCH_OP_CONVERTER(HardTanh, aten, hardtanh_)
 REGISTER_TORCH_OP_CONVERTER(HardSigmoid, aten, hardsigmoid_)
 REGISTER_TORCH_OP_CONVERTER(HardSigmoid, aten, hardsigmoid)
 REGISTER_TORCH_OP_CONVERTER(HardSwish, aten, hardswish_)
-REGISTER_TORCH_OP_CONVERTER(LayerNorm, aten, layer_norm)
+REGISTER_TORCH_OP_CONVERTER(Decompose, aten, layer_norm)
+//REGISTER_TORCH_OP_CONVERTER(LayerNorm, aten, layer_norm)
 REGISTER_TORCH_OP_CONVERTER(Linear, aten, linear)
 REGISTER_TORCH_OP_CONVERTER(MatMul, aten, matmul)
 REGISTER_TORCH_OP_CONVERTER(Permute, aten, permute)
@@ -1918,8 +2177,10 @@ REGISTER_TORCH_OP_CONVERTER(Softmax, aten, softmax)
 REGISTER_TORCH_OP_CONVERTER(Split, aten, split)
 REGISTER_TORCH_OP_CONVERTER(Split, aten, chunk)
 REGISTER_TORCH_OP_CONVERTER(StridedSlice, aten, slice)
+REGISTER_TORCH_OP_CONVERTER(Sqrt, aten, sqrt)
+REGISTER_TORCH_OP_CONVERTER(Tanh, aten, tanh)
 REGISTER_TORCH_OP_CONVERTER(To, aten, to)
-// REGISTER_TORCH_OP_CONVERTER(TopK, aten, topk)
+REGISTER_TORCH_OP_CONVERTER(TopK, aten, topk)
 REGISTER_TORCH_OP_CONVERTER(Transpose, aten, transpose)
 // REGISTER_TORCH_OP_CONVERTER(Upsample, aten, upsample_bilinear2d)
 REGISTER_TORCH_OP_CONVERTER(Upsample, aten, upsample_nearest2d)

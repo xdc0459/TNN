@@ -305,7 +305,7 @@ void registerSegmentsOutputs(PartitionedGraph& segmented_blocks, std::shared_ptr
 }
 
 std::vector<SegmentedBlock> segment_graph(std::shared_ptr<torch::jit::Graph> g) {
-    auto min_block_size  = 5;
+    auto min_block_size  = 20;
     bool forced_fallback = false;
 
     auto nodes = g->block()->nodes();

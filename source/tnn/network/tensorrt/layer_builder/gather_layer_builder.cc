@@ -105,6 +105,9 @@ nvinfer1::DataType GatherTRTPluginLayerBuilder::getOutputDataType(int index, con
 // if not shape tensor, we use customized gather implementation
 ILayer* GatherTRTPluginLayerBuilder::AddToNetwork(INetworkDefinition* network) noexcept {
     // if shape tensor
+    // Don't use plugin for better performance by Myelin
+    // Currently (TRT 8.4, 8.2), sometimes there is bug in Myelin optimization for dynamic input
+    //if(true) {
     if (GetInputITensors()[0]->getDimensions().nbDims == 0 ||
         GetInputITensors()[0]->getDimensions().nbDims == 1) {
 

@@ -34,18 +34,20 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     auto input_names  = compiled_engine->input_names;
     auto output_names = compiled_engine->output_names;
     InputShapesMap inputs_shape_map;
-    InputDataTypeMap inputs_data_type_map;
-
     int input_idx = 0;
     for (auto &input : inputs) {
-        inputs_shape_map[input_names[input_idx]] = util::toDims(input.sizes());
-        BlobDesc blob_desc;
-        GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
-        // binding input data type
-        inputs_data_type_map[input_names[input_idx++]] = blob_desc.data_type;
+        inputs_shape_map[input_names[input_idx++]] = util::toDims(input.sizes());
     }
 
     if (!compiled_engine->is_init_) {
+        int input_idx = 0;
+        InputDataTypeMap inputs_data_type_map;
+        for (auto &input : inputs) {
+            BlobDesc blob_desc;
+            GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
+            // binding input data type
+            inputs_data_type_map[input_names[input_idx++]] = blob_desc.data_type;
+        }
         auto interpreter = dynamic_cast<ModelInterpreter *>(compiled_engine->ctx_->get_interpreter().get());
         interpreter->GetNetStructure()->inputs_shape_map = inputs_shape_map;
         interpreter->GetNetStructure()->input_data_type_map = inputs_data_type_map;
@@ -99,7 +101,10 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         contig_inputs.emplace_back(contig_input);
 
         BlobHandle handle;
-        handle.base = contig_input.data_ptr();
+        if (contig_input.data_ptr() != NULL)
+            handle.base = contig_input.data_ptr();
+        else
+            handle.base = (void*)1;
         input_blobs[input_names[i]]->SetHandle(handle);
         input_blobs[input_names[i]]->SetBlobDesc(blob_desc);
 
@@ -115,9 +120,14 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         at::ScalarType scalar_type;
         ConvertToTorchDataType(scalar_type, desc.data_type);
         outputs[i] = std::move(at::empty(ConvertDimsToIntArrayRef(desc.dims), {device.type()}).to(scalar_type).contiguous());
+        //c10::TensorOptions options = c10::TensorOptions().device(device.type()).dtype(scalar_type);
+        //outputs[i] = std::move(at::empty(ConvertDimsToIntArrayRef(desc.dims), options, c10::MemoryFormat::Contiguous));
 
         BlobHandle handle;
-        handle.base = outputs[i].data_ptr();;
+        if (outputs[i].data_ptr() != NULL)
+            handle.base = outputs[i].data_ptr();
+        else
+            handle.base = (void*)1;
         output_blobs[output_names[i]]->SetHandle(handle);
         // DumpDeviceBlob(output_blobs[output_names[i]], cmd_queue, "tnn-output-"+output_names[i]);
     }

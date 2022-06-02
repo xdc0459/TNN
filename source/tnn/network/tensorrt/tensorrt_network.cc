@@ -30,7 +30,7 @@
 
 namespace TNN_NS {
 
-#define MAX_SCRATCH_MEMORY (1l<<33 - 1)
+#define MAX_SCRATCH_MEMORY (1<<28 - 1)
 #define TENSORRT_SERIALIZE_VERSION "v1.5"
 
 NetworkImplFactoryRegister<NetworkImplFactory<TensorRTNetwork_>>
@@ -253,15 +253,19 @@ Status TensorRTNetwork_::Forward() {
         LOGE("ERROR: get output blobs failed");
         return ret;
     }
+    //std::cout<<"PengInputs Size:"<<inputs.size()<<std::endl;
+    //std::cout<<"PengOutputs Size:"<<outputs.size()<<std::endl;
 
     for (auto iter : inputs) {
         int index = m_trt_engine->getBindingIndex(iter.first.c_str());
+        //std::cout<<"PengInputs:"<<iter.first.c_str()<<"  desc:"<<inputs[iter.first.c_str()]->GetBlobDesc().description()<<"  index:"<<index<<std::endl;
         if (index < 0) continue;
         this->m_trt_bindings[index] = iter.second->GetHandle().base;
     }
 
     for (auto iter : outputs) {
         int index = m_trt_engine->getBindingIndex(iter.first.c_str());
+        //std::cout<<"PengOutputs:"<<iter.first.c_str()<<"  desc:"<<outputs[iter.first.c_str()]->GetBlobDesc().description()<<"  index:"<<index<<std::endl;
         if (index < 0) continue;
         this->m_trt_bindings[index] = iter.second->GetHandle().base;
     }
@@ -269,10 +273,12 @@ Status TensorRTNetwork_::Forward() {
     bool trt_ret = this->m_trt_context->enqueueV2(this->m_trt_bindings,
         dynamic_cast<CudaContext*>(context_)->GetStream(), nullptr);
     if (trt_ret != true) {
+        LOGE("ERROR: TensorRT enqueue Error");
         return TNNERR_CUDA_TENSORRT_ERROR;
     }
     Status status = context_->Synchronize();
     if(status != TNN_OK) {
+        LOGE("ERROR: TensorRT Synchronize Error");
         return status;
     }
 #if (DUMP_INPUT_BLOB || DUMP_OUTPUT_BLOB)
@@ -282,13 +288,15 @@ Status TensorRTNetwork_::Forward() {
 }
 
 Status TensorRTNetwork_::ReshapeLayers() {
+    /*
     for (auto cur_layer : layers_) {
         auto ret = dynamic_cast<TensorRTBaseLayerBuilder*>(cur_layer)->Reshape();
         if (ret != TNN_OK) {
+            LOGE("ERROR: Reshape TensorRT layer error");
             return ret;
         }
     }
-
+    */
     BlobMap inputs;
     auto ret = blob_manager_->GetAllInputBlobs(inputs);
     if (ret != TNN_OK) {
@@ -302,14 +310,7 @@ Status TensorRTNetwork_::ReshapeLayers() {
         auto dims = blob_manager_->GetBlob(iter.first)->GetBlobDesc().dims;
         nvinfer1::Dims inputDims = ConvertToTRTDims(dims);
         m_trt_context->setBindingDimensions(index, inputDims);
-        this->m_trt_bindings[index] = iter.second->GetHandle().base;
-    }
-
-    BlobMap outputs;
-    ret = blob_manager_->GetAllOutputBlobs(outputs);
-    if (ret != TNN_OK) {
-        LOGE("ERROR: get output blobs failed");
-        return ret;
+        //this->m_trt_bindings[index] = iter.second->GetHandle().base;
     }
 
     for (auto blob_name : const_input_blobs_) {
@@ -336,9 +337,17 @@ Status TensorRTNetwork_::ReshapeLayers() {
         }
     }
 
+    BlobMap outputs;
+    ret = blob_manager_->GetAllOutputBlobs(outputs);
+    if (ret != TNN_OK) {
+        LOGE("ERROR: get output blobs failed");
+        return ret;
+    }
+
     for (auto iter : outputs) {
         int index = m_trt_engine->getBindingIndex(iter.first.c_str());
         auto trt_dims = m_trt_context->getBindingDimensions(index).d;
+        //this->m_trt_bindings[index] = iter.second->GetHandle().base;
         DimsVector dims;
         for (int i = 0; i < m_trt_context->getBindingDimensions(index).nbDims; i++) {
             dims.push_back(trt_dims[i]);
