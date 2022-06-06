@@ -15,17 +15,18 @@
 #include "tnn/core/blob.h"
 #include "tnn/network/torch/jit_util.h"
 #include "tnn/network/torch/torch_convert.h"
+#include "tnn/network/torch/torch_macro.h"
 #include "tnn/network/torch/torch_tnn_runtime.h"
 #include "tnn/network/torch/torch_utils.h"
-#include "torch/csrc/jit/runtime/custom_operator.h"
+#include "tnn/interpreter/tnn/model_interpreter.h"
 #include "tnn/interpreter/tnn/model_packer.h"
-#include <cuda_runtime.h>
-
-#include <stdexcept>
+#include "tnn/utils/blob_dump_utils.h"
 
 #include "c10/cuda/CUDAStream.h"
-#include "tnn/utils/blob_dump_utils.h"
-#include "tnn/interpreter/tnn/model_interpreter.h"
+#include "torch/csrc/jit/runtime/custom_operator.h"
+
+#include <cuda_runtime.h>
+#include <stdexcept>
 
 namespace TNN_NS {
 namespace runtime {
@@ -77,9 +78,7 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     }
 
     auto status = compiled_engine->instance_->Reshape(inputs_shape_map);
-    if(status != TNN_OK) {
-        throw std::runtime_error("input shapes error \n");
-    }
+    TORCH_CHECK_THROW_ERROR(status, "input shapes not in range [min, max] \n")
 
     BlobMap input_blobs;
     BlobMap output_blobs;
