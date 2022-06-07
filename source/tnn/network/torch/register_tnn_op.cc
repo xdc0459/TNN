@@ -33,6 +33,7 @@ namespace runtime {
 
 std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
                                         c10::intrusive_ptr<TNNEngine> compiled_engine) {
+    Status ret = TNN_OK;
     auto scalar_type = inputs[0].scalar_type();
     auto input_names  = compiled_engine->input_names;
     auto output_names = compiled_engine->output_names;
@@ -43,7 +44,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     for (auto &input : inputs) {
         inputs_shape_map[input_names[input_idx]] = util::toDims(input.sizes());
         BlobDesc blob_desc;
-        GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
+        ret = GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
+        TORCH_CHECK_THROW_ERROR(ret, "GetBlobDescFromTensor ERROR \n");
         // binding input data type
         inputs_data_type_map[input_names[input_idx++]] = blob_desc.data_type;
     }
@@ -68,7 +70,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
 
         // ModelPacker package(interpreter->GetNetStructure(), interpreter->GetNetResource());
         // package.Pack("torch.tnnproto", "torch.tnnmodel");
-        compiled_engine->instance_->Init(compiled_engine->interpreter_, min_shape, max_shape);
+        ret = compiled_engine->instance_->Init(compiled_engine->interpreter_, min_shape, max_shape);
+        TORCH_CHECK_THROW_ERROR(ret, "compiled_engine init error \n");
         compiled_engine->is_init_ = true;
     }
 
@@ -77,9 +80,9 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         compiled_engine->instance_->SetCommandQueue(stream.stream());
     }
 
-    auto status = compiled_engine->instance_->Reshape(inputs_shape_map);
-    TORCH_CHECK_THROW_ERROR(status, "input shapes not in range [min, max] \n")
-
+    ret = compiled_engine->instance_->Reshape(inputs_shape_map);
+    TORCH_CHECK_THROW_ERROR(ret, "input shapes not in range [min, max] \n");
+    
     BlobMap input_blobs;
     BlobMap output_blobs;
     compiled_engine->instance_->GetAllInputBlobs(input_blobs);
@@ -97,7 +100,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         DeviceType device_type;
         BlobDesc blob_desc;
         ConvertToDeviceType(device_type, inputs[i].device());
-        GetBlobDescFromTensor(blob_desc, inputs[i]);
+        ret = GetBlobDescFromTensor(blob_desc, inputs[i]);
+        TORCH_CHECK_THROW_ERROR(ret, "GetBlobDescFromTensor ERROR \n");
         auto contig_input = inputs[i].contiguous();
         // extend the lifetime of contig tensors
         contig_inputs.emplace_back(contig_input);
@@ -139,7 +143,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     compiled_engine->instance_->SetForwardMemory(reinterpret_cast<void*>(forward_tensor->data_ptr<float>()));
 
     // use torch memory management
-    Status ret = compiled_engine->instance_->Forward();
+    ret = compiled_engine->instance_->Forward();
+    TORCH_CHECK_THROW_ERROR(ret, "compiled_engine forward ERROR \n");
 
     return outputs;
 }
