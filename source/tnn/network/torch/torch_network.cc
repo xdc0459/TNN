@@ -106,7 +106,12 @@ Status TNNTorchNetwork::Init(NetworkConfig &net_config, ModelConfig &model_confi
             RETURN_ON_NEQ(ConvertToTorchDevice(device, config_.device_type, config_.device_id), TNN_OK);
             auto mod = torch::jit::load(model_stream, device);
             InputDataTypeMap input_type;
-            module_ = CompileTorch(mod, min_inputs_shape_, max_inputs_shape_, input_type, config_, forward_func_name_);
+            try {
+                module_ = CompileTorch(mod, min_inputs_shape_, max_inputs_shape_, input_type, config_, forward_func_name_);
+            } catch (std::exception& e) {
+                LOGE("TNNTorchNetwork Init Compile exception: %s \n", e.what());
+                return Status(TNNERR_NET_ERR, "TNNTorchNetwork Init Compile Error \n");
+            }
             graph_ = module_.get_method(forward_func_name_).graph();
         } else {
             return Status(TNNERR_PARAM_ERR, "Unsupported model type for TNNTorchNetwork");
