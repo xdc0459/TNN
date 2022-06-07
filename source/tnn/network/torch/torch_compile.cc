@@ -21,6 +21,7 @@
 #include "tnn/network/torch/jit_util.h"
 #include "tnn/network/torch/partitioning.h"
 #include "tnn/network/torch/torch_convert.h"
+#include "tnn/network/torch/torch_macro.h"
 #include "tnn/network/torch/torch_optimize.h"
 
 #include "tnn/utils/blob_dump_utils.h"
@@ -142,6 +143,7 @@ void RegisterNodeToOutput(std::shared_ptr<torch::jit::Module> &mod, const std::v
 torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_input_shape,
                                 InputShapesMap &max_input_shape, InputDataTypeMap &input_type,
                                 NetworkConfig &config, std::string forward_func_name) {
+    Status status = TNN_OK;
     if (config.precision == PRECISION_LOW ) {
         mod.to(torch::kHalf);
     }
@@ -163,22 +165,23 @@ torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_inp
 
         // run shape infer and combine to blocks
         if (min_input_shape.size() && max_input_shape.size() && min_input_shape.size() == max_input_shape.size()) {
-	    //fix clone memory leak
-	    std::stringstream save_stream(std::ios_base::binary | std::ios_base::in | std::ios_base::out);
-	    mod.save(save_stream);
-	    save_stream.seekg(0);
-	    c10::Device device(c10::kCPU);
+	        //fix clone memory leak
+	        std::stringstream save_stream(std::ios_base::binary | std::ios_base::in | std::ios_base::out);
+	        mod.save(save_stream);
+	        save_stream.seekg(0);
+	        c10::Device device(c10::kCPU);
             ConvertToTorchDevice(device, config.device_type, config.device_id);
-	    auto shape_mod = torch::jit::freeze(torch::jit::load(save_stream, device));
+	        auto shape_mod = torch::jit::freeze(torch::jit::load(save_stream, device));
             auto shape_seg = partitioning::Partition(shape_mod, shape_mod.get_method(forward_func_name).graph(), config);
             std::vector<BlobDesc> subgraph_min_input_info;
             std::vector<BlobDesc> subgraph_max_input_info;
             //// input type & shape will be used for random input generation, then subgraph input info can be infered out
             // InputDataTypeMap input_type;
 
-            partitioning::runShapeInfer(shape_mod, shape_seg, min_input_shape, input_type, config, subgraph_min_input_info);
-            partitioning::runShapeInfer(shape_mod, shape_seg, max_input_shape, input_type, config, subgraph_max_input_info);
-	    
+            status = partitioning::runShapeInfer(shape_mod, shape_seg, min_input_shape, input_type, config, subgraph_min_input_info);
+            TORCH_CHECK_THROW_ERROR(status, "partitioning::runShapeInfer Error \n");
+	    status = partitioning::runShapeInfer(shape_mod, shape_seg, max_input_shape, input_type, config, subgraph_max_input_info);
+            TORCH_CHECK_THROW_ERROR(status, "partitioning::runShapeInfer Error \n");
             int input_idx = 0;
             for (auto &block : seg_blocks) {
                 std::vector<DimsVector> min_shape;
@@ -221,7 +224,9 @@ torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_inp
             try {
                 std::ostringstream tnn_engine_id;
                 tnn_engine_id << reinterpret_cast<const int *>(&block);
-                auto engine_ptr = conversion::ConvertBlockToInstance(block, config);
+
+                auto engine_ptr = conversion::ConvertBlockToInstance(block, config, status);
+                TORCH_CHECK_THROW_ERROR(status, "conversion::ConvertBlockToInstance Error \n");
                 auto temp_g     = std::make_shared<torch::jit::Graph>();
                 AddEngineToGraph(mod, temp_g, engine_ptr, tnn_engine_id.str(), true);
                 // std::cout << block.g()->toString() << std::endl;

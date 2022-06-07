@@ -24,7 +24,7 @@ namespace TNN_NS {
     ss << msg;                        \
     throw std::runtime_error(ss.str());
 
-#define TORCH_CHECK_THROW_ERROR(status, ...)                                    \
+#define TORCH_CHECK_THROW_ERROR(status, ...)                               \
   if (status != TNN_OK){                                                   \
     TORCH_THROW_ERROR("Check " << #status << " Failed \n" << __VA_ARGS__); \
   }

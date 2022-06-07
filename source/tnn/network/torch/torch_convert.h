@@ -26,7 +26,7 @@
 namespace TNN_NS {
 namespace conversion {
 
-c10::intrusive_ptr<runtime::TNNEngine> ConvertBlockToInstance(partitioning::SegmentedBlock &block, NetworkConfig &config); 
+c10::intrusive_ptr<runtime::TNNEngine> ConvertBlockToInstance(partitioning::SegmentedBlock &block, NetworkConfig &config, Status& status); 
 
 }
 }

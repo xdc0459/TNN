@@ -25,7 +25,7 @@
 namespace TNN_NS {
 namespace partitioning {
 
-void genRandomInputs(std::shared_ptr<torch::jit::Graph> graph, InputShapesMap &input_shape, InputDataTypeMap &input_type,
+Status genRandomInputs(std::shared_ptr<torch::jit::Graph> graph, InputShapesMap &input_shape, InputDataTypeMap &input_type,
                         std::vector<std::shared_ptr<Blob>> &blobs,
                         std::vector<torch::jit::IValue> &jit_inputs_ivalues, NetworkConfig& config) {
     std::set<c10::TypeKind> supported_kinds = {
@@ -46,7 +46,7 @@ void genRandomInputs(std::shared_ptr<torch::jit::Graph> graph, InputShapesMap &i
     // Create Ivalues from types
     jit_inputs_ivalues.resize(inputs.size());
     for (int i = 0; i < inputs.size(); i++) {
-        CreateIValueFromTypePtr(jit_inputs_ivalues[i], inputs[i]->type());
+        RETURN_ON_FAIL(CreateIValueFromTypePtr(jit_inputs_ivalues[i], inputs[i]->type()));
     }
 
     // Create Blob and tensor
@@ -65,12 +65,14 @@ void genRandomInputs(std::shared_ptr<torch::jit::Graph> graph, InputShapesMap &i
 
         auto router = IValueRouter::create(inputs[id]->type(), input.first); 
         std::shared_ptr<at::Tensor> tensor;
-        CreateTensorByBlob(tensor, blob.get());
-        router->attach(jit_inputs_ivalues[id], tensor);
+        RETURN_ON_FAIL(CreateTensorByBlob(tensor, blob.get()));
+        RETURN_ON_FAIL(router->attach(jit_inputs_ivalues[id], tensor));
     }
+
+    return TNN_OK;
 }
 
-void runShapeInfer(torch::jit::Module& mod, std::vector<SegmentedBlock> &segmented_blocks,
+Status runShapeInfer(torch::jit::Module& mod, std::vector<SegmentedBlock> &segmented_blocks,
                    InputShapesMap &input_shape, InputDataTypeMap &input_type, NetworkConfig& config,
                    std::vector<BlobDesc>& subgraph_input_info) {
     auto graph = mod.get_method("forward").graph();
@@ -95,31 +97,27 @@ void runShapeInfer(torch::jit::Module& mod, std::vector<SegmentedBlock> &segment
     // forward with random inputs
     std::vector<torch::jit::IValue> jit_inputs_ivalues;
     std::vector<std::shared_ptr<Blob>> blobs;
-    genRandomInputs(graph, input_shape, input_type, blobs, jit_inputs_ivalues, config);
+    RETURN_ON_FAIL(genRandomInputs(graph, input_shape, input_type, blobs, jit_inputs_ivalues, config));
     torch::jit::IValue jit_results_ivalues = mod.forward(jit_inputs_ivalues);
 
-    auto get_output_shape = [&](torch::jit::IValue &output) {
-        // get result tensor shape
-        if (output.isTuple()) {
-            auto results = output.toTuple()->elements();
-            int i = 0;
-            for (auto &r : results) {
-                auto result = r.toTensor();
-                BlobDesc blob_desc;
-                GetBlobDescFromTensor(blob_desc, result);
-                blob_desc.name = new_vec[i++]->debugName();
-                subgraph_input_info.push_back(blob_desc);
-            }
-        } else {
-            auto result = output.toTensor();
+    // get result tensor shape
+    if (jit_results_ivalues.isTuple()) {
+        auto results = jit_results_ivalues.toTuple()->elements();
+        int i        = 0;
+        for (auto &r : results) {
+            auto result = r.toTensor();
             BlobDesc blob_desc;
-            GetBlobDescFromTensor(blob_desc, result);
-            blob_desc.name = new_vec[0]->debugName();
+            RETURN_ON_FAIL(GetBlobDescFromTensor(blob_desc, result));
+            blob_desc.name = new_vec[i++]->debugName();
             subgraph_input_info.push_back(blob_desc);
         }
-    };
-
-    get_output_shape(jit_results_ivalues);
+    } else {
+        auto result = jit_results_ivalues.toTensor();
+        BlobDesc blob_desc;
+        RETURN_ON_FAIL(GetBlobDescFromTensor(blob_desc, result));
+        blob_desc.name = new_vec[0]->debugName();
+        subgraph_input_info.push_back(blob_desc);
+    }
 
     // restore old graph output
     graph->eraseOutput(0);
@@ -127,6 +125,8 @@ void runShapeInfer(torch::jit::Module& mod, std::vector<SegmentedBlock> &segment
 
     new_return_node->removeAllInputs();
     new_return_node->destroy();
+
+    return TNN_OK;
 }
 
 }  // namespace partitioning
