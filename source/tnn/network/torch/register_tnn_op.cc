@@ -118,6 +118,11 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         c10::Device device(c10::kCPU);
         ConvertToTorchDevice(device, desc.device_type);
         at::ScalarType scalar_type;
+        // TODO: Peng, TIACC now only support Float output
+        // When plugin is the last layer of sub graph, plugin maybe change output blob data_type to half,
+        // reset the date_type here.
+        if (desc.data_type == DATA_TYPE_HALF)
+            desc.data_type = DATA_TYPE_FLOAT;
         ConvertToTorchDataType(scalar_type, desc.data_type);
         outputs[i] = std::move(at::empty(ConvertDimsToIntArrayRef(desc.dims), {device.type()}).to(scalar_type).contiguous());
         //c10::TensorOptions options = c10::TensorOptions().device(device.type()).dtype(scalar_type);

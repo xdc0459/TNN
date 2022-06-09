@@ -608,6 +608,89 @@ public:
             net_structure->layers.push_back(layer_info);
         }
 
+        // EX*EX
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type     = LAYER_MUL;
+            layer_info->type_str = "Mul";
+            layer_info->name = pre_layer_name + "_EX2";
+
+            auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
+            layer_param->weight_input_index = -1;
+            layer_info->inputs.push_back(pre_layer_name + "_Avg");
+            layer_info->inputs.push_back(pre_layer_name + "_Avg");
+            layer_info->outputs.push_back(pre_layer_name + "_EX2");
+
+
+            layer_info->param = layer_param;
+
+            net_structure->layers.push_back(layer_info);
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+        }
+
+        // X*X
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type     = LAYER_MUL;
+            layer_info->type_str = "Mul";
+            layer_info->name = pre_layer_name + "_X2";
+
+            auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
+            layer_param->weight_input_index = -1;
+            layer_info->inputs.push_back(input->debugName());
+            layer_info->inputs.push_back(input->debugName());
+            layer_info->outputs.push_back(pre_layer_name + "_X2");
+
+
+            layer_info->param = layer_param;
+
+            net_structure->layers.push_back(layer_info);
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+        }
+
+        // E[x^2]
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type = LAYER_REDUCE_MEAN;
+            layer_info->type_str = "ReduceMean";
+            layer_info->name = pre_layer_name + "_X2E";
+
+            layer_info->inputs.push_back(pre_layer_name + "_X2");
+            layer_info->outputs.push_back(pre_layer_name + "_X2E");
+
+            layer_info->param = reduce_layer_param;
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+            net_structure->layers.push_back(layer_info);
+        }
+
+        // E(X^2)-(E[x])^2
+        {
+            std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+            layer_info->type     = LAYER_SUB;
+            layer_info->type_str = "Sub";
+            layer_info->name = pre_layer_name + "_Var";
+
+            auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
+            layer_param->weight_input_index = -1;
+            layer_info->inputs.push_back(pre_layer_name + "_X2E");
+            layer_info->inputs.push_back(pre_layer_name + "_EX2");
+            layer_info->outputs.push_back(pre_layer_name + "_Var");
+
+
+            layer_info->param = layer_param;
+
+            net_structure->layers.push_back(layer_info);
+
+            ADD_INPUTS_AND_OUTPUTS;
+
+        }
+
         // X-E[x]
         {
             std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
@@ -629,6 +712,7 @@ public:
             ADD_INPUTS_AND_OUTPUTS;
 
         }
+        /* ONE method to compute VAR
 
         // POW(X-E(x))
         {
@@ -665,7 +749,7 @@ public:
             net_structure->layers.push_back(layer_info);
 
         }
-
+        */
         // VAR + eps
         {
             std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
@@ -2156,8 +2240,8 @@ REGISTER_TORCH_OP_CONVERTER(HardTanh, aten, hardtanh_)
 REGISTER_TORCH_OP_CONVERTER(HardSigmoid, aten, hardsigmoid_)
 REGISTER_TORCH_OP_CONVERTER(HardSigmoid, aten, hardsigmoid)
 REGISTER_TORCH_OP_CONVERTER(HardSwish, aten, hardswish_)
-REGISTER_TORCH_OP_CONVERTER(Decompose, aten, layer_norm)
-//REGISTER_TORCH_OP_CONVERTER(LayerNorm, aten, layer_norm)
+//REGISTER_TORCH_OP_CONVERTER(Decompose, aten, layer_norm)
+REGISTER_TORCH_OP_CONVERTER(LayerNorm, aten, layer_norm)
 REGISTER_TORCH_OP_CONVERTER(Linear, aten, linear)
 REGISTER_TORCH_OP_CONVERTER(MatMul, aten, matmul)
 REGISTER_TORCH_OP_CONVERTER(Permute, aten, permute)

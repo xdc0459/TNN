@@ -358,6 +358,8 @@ namespace jit {
 //        RemoveSlice(graph->block());
 
         torch::jit::EliminateDeadCode(graph);
+        std::cout<<"================ init graph==========="<<std::endl;
+        std::cout<<graph->toString()<<std::endl;
     }
 }  // namespace jit
 }  // namespace torch
