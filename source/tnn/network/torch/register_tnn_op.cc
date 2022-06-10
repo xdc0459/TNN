@@ -99,7 +99,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         // set blob handle directly
         DeviceType device_type;
         BlobDesc blob_desc;
-        ConvertToDeviceType(device_type, inputs[i].device());
+        ret = ConvertToDeviceType(device_type, inputs[i].device());
+        TORCH_CHECK_THROW_ERROR(ret, "ConvertToDeviceType ERROR \n");
         ret = GetBlobDescFromTensor(blob_desc, inputs[i]);
         TORCH_CHECK_THROW_ERROR(ret, "GetBlobDescFromTensor ERROR \n");
         auto contig_input = inputs[i].contiguous();
@@ -119,9 +120,11 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         // output blob data type is consistent with the input tensor, no need to convert tensor type
         auto desc = output_blobs[output_names[i]]->GetBlobDesc();
         c10::Device device(c10::kCPU);
-        ConvertToTorchDevice(device, desc.device_type);
+        ret = ConvertToTorchDevice(device, desc.device_type);
+        TORCH_CHECK_THROW_ERROR(ret, "ConvertToTorchDevice ERROR \n");
         at::ScalarType scalar_type;
-        ConvertToTorchDataType(scalar_type, desc.data_type);
+        ret = ConvertToTorchDataType(scalar_type, desc.data_type);
+        TORCH_CHECK_THROW_ERROR(ret, "ConvertToTorchDataType ERROR \n");
         outputs[i] = std::move(at::empty(ConvertDimsToIntArrayRef(desc.dims), {device.type()}).to(scalar_type).contiguous());
 
         BlobHandle handle;
@@ -133,7 +136,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     auto desc = output_blobs[output_names[0]]->GetBlobDesc();
     size_t shared_memory_size = 0;
     c10::Device device(c10::kCUDA);
-    ConvertToTorchDevice(device, desc.device_type);
+    ret = ConvertToTorchDevice(device, desc.device_type);
+    TORCH_CHECK_THROW_ERROR(ret, "ConvertToTorchDevice ERROR \n");
     compiled_engine->instance_->GetForwardMemorySize(shared_memory_size);
     c10::TensorOptions tensor_options;
     // use int8 tensor not aligned to 256 bytes, invalid for context memmory
