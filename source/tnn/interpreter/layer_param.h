@@ -648,6 +648,13 @@ struct ExpandLayerParam : public LayerParam {
     PARAM_COPY(ExpandLayerParam)
 };
 
+struct RollLayerParam : public LayerParam {
+    std::vector<int> shifts;
+    std::vector<int> dims;
+
+    PARAM_COPY(RollLayerParam)
+};
+
 struct MatMulLayerParam : public LayerParam {
     int weight_position = -1;
     DimsVector matrix_a_dims;

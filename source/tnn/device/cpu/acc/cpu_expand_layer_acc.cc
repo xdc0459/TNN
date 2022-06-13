@@ -37,7 +37,21 @@ Status CpuExpandLayerAcc::InferRuntimeOutputShape(const std::vector<Blob *> &inp
         for (int i=0; i<shape_data_count; i++) {
             shape_dims.push_back(shape_data[i]);
         }
-        
+ 
+        // Add for Dynamic Expand,try to Lower Dynamic Expand to static.
+        // Because TRT Does not accept dynamic Expand.
+        if (data_dims.size() == shape_data_count) {
+            for (int i=0; i<shape_data_count; i++) {
+                if (expand_param->shape.size()==shape_dims.size() && expand_param->shape[i]==-1) {
+                    shape_dims[i] = -1;
+                    continue;
+				}
+                if (expand_param->shape.size()==shape_dims.size() && expand_param->shape[i]!=shape_dims[i] && data_dims[i]==shape_dims[i]) {
+                    shape_dims[i] = -1;
+                }
+            }
+        }
+
         expand_param->shape = shape_dims;
         
         auto output_dims = DimsFunctionUtils::Expand(data_dims, shape_dims, nullptr);

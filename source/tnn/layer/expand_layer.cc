@@ -68,7 +68,9 @@ Status ExpandLayer::FillLayerParamWithConstantResource() {
             for (int i=0; i<dim_count; i++) {
                 dims.push_back(dim_data[i]);
             }
-            layer_param->shape = dims;
+            if (layer_param->shape.size()==0) {
+                layer_param->shape = dims;
+            }
         }
     }
     return status;

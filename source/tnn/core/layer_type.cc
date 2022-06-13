@@ -229,6 +229,7 @@ static std::map<std::string, LayerType> global_layer_type_map = {
     {"Expandas", LAYER_EXPANDAS},
     {"Or", LAYER_OR},
     {"Xor", LAYER_XOR},
+    {"Roll", LAYER_ROLL},
     // LAYER_INT8_RANGE
     // LAYER_TRT_ENGINE
 

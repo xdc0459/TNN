@@ -437,11 +437,151 @@ namespace jit {
         remove_contiguous.runOnGraph(graph);
     }
 
+
+    // Partly learnt from torch/csrc/jit/passes/lower_graph.cpp
+    // torch::jit::LowerGraph() Pass removes GetAttr but meanwhile add Constant Values to inputs.
+    // We don't need such kind of Inputs,
+    // Instead, We remove prim::GetAttr from Graph, replace part of "GetAttr" with Constant Values.
+    void LowerGetAttr(std::shared_ptr<Graph> graph, const c10::intrusive_ptr<c10::ivalue::Object>& module) {
+        struct Slot {
+            c10::intrusive_ptr<c10::ivalue::Object> obj;
+            size_t offset;
+            bool operator==(const Slot& other) const {
+                return (this->obj == other.obj && this->offset == other.offset);
+            }
+        };
+        struct SlotHash {
+            std::size_t operator()(const Slot& slot) const {
+                auto obj_hash = std::hash<c10::ivalue::Object*>{}(slot.obj.get());
+                auto offset_hash = std::hash<size_t>{}(slot.offset);
+                return c10::hash_combine(obj_hash, offset_hash);
+            }
+        };
+        std::unordered_map<Slot, size_t, SlotHash> slot_to_offset;
+
+        struct ToScan {
+            c10::intrusive_ptr<c10::ivalue::Object> mod;
+            torch::jit::Node* n;
+            size_t offset;
+        };
+
+        // Find out the first constant node, all inserted constant nodes are moved
+        // before the first constant node.
+        torch::jit::Node* first_constant_node = nullptr;
+        for (auto it = graph->nodes().begin(); it != graph->nodes().end(); it++) {
+            Node* node = *it;
+            if (node->kind() == at::prim::Constant) {
+                first_constant_node = node;
+                break;
+            }
+        }
+        // MayBe Needed, Inline to remove method/function calls
+        //torch::jit::Inline(*graph);
+
+        std::vector<torch::jit::Value*> extra_value_constants;
+        std::vector<ToScan> to_scan;
+        std::vector<torch::jit::Node*> to_clean;  // Nodes that should be dead at the end.
+
+        auto getOrAddSlot = [&](const Slot& slot) -> Value* {
+            auto it = slot_to_offset.find(slot);
+            if (it != slot_to_offset.end()) {
+                return extra_value_constants[it->second];
+            }
+            torch::jit::Value* const_value_inserted = graph->insertConstant(slot.obj->getSlot(slot.offset));
+            torch::jit::Node* const_node_inserted = const_value_inserted->node();
+            const_node_inserted->moveBefore(first_constant_node);
+            extra_value_constants.push_back(const_value_inserted);
+            slot_to_offset[slot] = extra_value_constants.size() - 1;
+            return const_value_inserted;
+        };
+
+        // Get the first input of Graph, usually, %self.1
+        auto self_value = graph->inputs().at(0);
+        for (auto use : self_value->uses()) {
+            to_scan.emplace_back(ToScan{module, use.user, use.offset});
+        }
+        
+        while (to_scan.size()>0) {
+            auto e = to_scan.back();
+            to_scan.pop_back();
+            
+            // TODO: DEAL WITH prim::fork in the future.
+            // when we lambda lift forks, first-class modules may be passed across
+            // forks. This code recursively lowers the module in the fork call.
+            //if (e.n->kind() == at::prim::fork) {
+            //    auto subgraph = e.n->g(c10::attr::Subgraph);
+            //    std::vector<Slot> new_slots;
+            //    std::tie(subgraph, new_slots) = lower_graph(e.mod, *subgraph, e.offset);
+            //    e.n->g_(attr::Subgraph, subgraph);
+            //    for (const Slot& slot : new_slots) {
+            //        e.n->addInput(getOrAddSlot(slot));
+            //    }
+            //    e.n->removeInput(e.offset);
+            //    continue;
+            //}
+            if (e.n->kind() == prim::PythonOp) {
+                LOGE("Couldn't export Python method.");
+                break;
+            }
+
+            if (e.n->kind() != c10::prim::GetAttr) {
+                LOGE("LowerGetAttr Got ERROR: user of %self.1 should be prim::GetAttr of prim::Fork!");
+                break;
+            }
+            
+            size_t slot_idx = e.mod->type()->getAttributeSlot(e.n->s(c10::attr::name));
+            auto iv = e.mod->getSlot(slot_idx);
+            if (c10::ClassTypePtr c = e.n->output()->type()->cast<c10::ClassType>()) {
+                if (c->is_module()) {
+                    for (auto use : e.n->output()->uses()) {
+                        to_scan.emplace_back(ToScan{iv.toObject(), use.user, use.offset});
+                    }
+                    to_clean.emplace_back(e.n);
+                    continue;
+                }
+            }
+            e.n->output()->replaceAllUsesWith(getOrAddSlot({e.mod, slot_idx}));
+            e.n->destroy();
+        }
+
+        while (to_clean.size() > 0) {
+            torch::jit::Node* n = to_clean.back();
+            if (n->hasUses()) {
+                LOGE("LowerGetAttr Got ERROR: to_clean Value still has uses.!");
+            }
+            n->destroy();
+            to_clean.pop_back();
+        }
+
+        if (self_value->hasUses()) {
+            LOGE("LowerGetAttr Got ERROR: After LowerGetAttr, input %self.1 still has uses.!");
+        }
+    }
+
     // DEBUG, add output to Graph
     void DebugAddOutput(Graph* graph) {
         int curr_idx = 0;
         auto block = graph->block();
-        
+       
+        // When Output is a single Tensor.
+        // by name and type
+        std::string target_out_name = "x.38";
+        for (auto it = block->nodes().begin(); it != block->nodes().end(); it++) {
+            Node* node = *it;
+            if (node->inputs().size()>0 && node->outputs().size()>0 &&
+                node->output(0)->debugName()==target_out_name) {
+                graph->eraseOutput(0);
+                graph->registerOutput(node->output(0));
+                std::cout << "=== [Graph DEBUG] register out0 of [" << curr_idx << "]th node to output. ";
+                std::cout << "Target node type = " << node->kind().toQualString() << ", in0.name=" << node->input(0)->debugName();
+                std::cout << ", out0.name=" << node->output(0)->debugName() << " ==="<< std::endl;
+                break;
+            }
+            curr_idx++;
+        }
+
+        // When Output is a Tensor tuple.
+        /*
         std::vector<Value*> out_tuple_inputs;
         for (auto it = block->nodes().begin(); it != block->nodes().end(); it++) {
             Node* node = *it;
@@ -455,7 +595,11 @@ namespace jit {
             }
         }
         // by name and type
-        std::string target_out_name = "attn_weights3.2";
+        //std::string target_out_name = "attn_weights3.2";
+        //std::string target_out_name = "attn_weights2.2";
+        std::string target_out_name = "encoder_padding_mask.1";
+        //std::string target_out_name = "x0.15";
+        //std::string target_out_name = "xy_matmul.3";
         for (auto it = block->nodes().begin(); it != block->nodes().end(); it++) {
             Node* node = *it;
             if (node->inputs().size()>0 && node->outputs().size()>0 &&
@@ -473,7 +617,11 @@ namespace jit {
             }
             curr_idx++;
         }
+        */
     }
+
+
+
 
     void TorchOptPass(script::Module& module) {
 
@@ -486,14 +634,15 @@ namespace jit {
         RemoveException(graph->block());
         RemoveListAppend(graph.get(), graph->block());
 //      Remove Concat cause cascade rcnn crash        
-//        RemoveConcat(graph->block());
-        RemoveContiguous(graph);
+//      RemoveConcat(graph->block());
+//      RemoveContiguous(graph);
         
         RemoveList(graph->block());
         UnpackTensorLists(graph.get(), graph->block()); // Call to RemoveList() Required Before Call to UnpackTensorList()!
-//        RemoveClone(graph->block());
-//        RemoveNoneTypeFromTuple(graph->block());
-//        RemoveSlice(graph->block());
+        LowerGetAttr(graph, module._ivalue());
+//      RemoveClone(graph->block());
+//      RemoveNoneTypeFromTuple(graph->block());
+//      RemoveSlice(graph->block());
 
         torch::jit::EliminateDeadCode(graph);
         // DEBUG

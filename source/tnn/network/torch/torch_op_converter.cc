@@ -32,10 +32,10 @@ public:
         layer_info->type_str = "Convolution1D";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<ConvLayerParam>();
         auto layer_res = new(ConvLayerResource);
@@ -89,10 +89,10 @@ public:
         layer_info->type_str = "Convolution";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<ConvLayerParam>();
         auto layer_res = new(ConvLayerResource);
@@ -143,10 +143,10 @@ class Conv3DTorchConverter : public TorchOpConverter {
         layer_info->type_str = "Convolution3D";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<ConvLayerParam>();
         auto layer_res = new(ConvLayerResource);
@@ -194,16 +194,14 @@ class Conv3DTorchConverter : public TorchOpConverter {
 //                    int[] output_padding, int groups, bool benchmark, bool deterministic, bool cudnn_enabled, bool allow_tf32) -> Tensor
 class _ConvTorchConverter : public TorchOpConverter {
 public:
-  /*
-    bool IsSupported(const torch::jit::Node *node) {
-        const auto& inputs = node->inputs();
-        const auto transposed = getValue<bool>(inputs[6]);
-        return !transposed;
-    }
-  */
+    //bool IsSupported(const torch::jit::Node *node) {
+    //    const auto& inputs = GetEffectiveInputValues(node);
+    //    const auto transposed = getValue<bool>(inputs[6]);
+    //    return !transposed;
+    //}
 
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
         const auto transposed = getValue<bool>(inputs[6]);
         
         std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
@@ -214,8 +212,8 @@ public:
             layer_info->type_str = transposed ? "Deconvolution" : "Convolution";
             layer_info->name = node->output(0)->debugName();
 
-            layer_info->inputs.push_back(node->inputs()[0]->debugName());
-            layer_info->outputs.push_back(node->outputs()[0]->debugName());
+            layer_info->inputs.push_back(inputs[0]->debugName());
+            layer_info->outputs.push_back(node->output(0)->debugName());
 
             auto layer_param = std::make_shared<ConvLayerParam>();
             auto layer_res = new(ConvLayerResource);
@@ -224,7 +222,7 @@ public:
             const auto stride = getValue<std::vector<int64_t>>(inputs[3]);
             const auto padding = getValue<std::vector<int64_t>>(inputs[4]);
             const auto dialation = getValue<std::vector<int64_t>>(inputs[5]);
-        const auto output_pads = getValue<std::vector<int64_t>>(inputs[7]);
+            const auto output_pads = getValue<std::vector<int64_t>>(inputs[7]);
             const auto group = getValue<int64_t>(inputs[8]);
             // const auto transposed = getValue<bool>(inputs[6]);
 
@@ -238,16 +236,16 @@ public:
 
             // set param accroding to real value, just test here
             layer_param->name = layer_info->name;
-            if(output_pads.size()>0 && output_pads[0] != 0) {
-            layer_param->pad_type = 3;
-            layer_param->output_channel = shape[1] * group;
-            layer_param->input_channel = shape[0] / group;
-        } else {
-            layer_param->pad_type = -1;
-            layer_param->output_channel = shape[0];
-            layer_param->input_channel = shape[1];
-        }
-        layer_param->kernels = {shape[3], shape[2]};
+            if (output_pads.size()>0 && output_pads[0] != 0) {
+                layer_param->pad_type = 3;
+                layer_param->output_channel = shape[1] * group;
+                layer_param->input_channel = shape[0] / group;
+            } else {
+                layer_param->pad_type = -1;
+                layer_param->output_channel = shape[0];
+                layer_param->input_channel = shape[1];
+            }
+            layer_param->kernels = {shape[3], shape[2]};
             layer_param->dialations = {(int)dialation[1], (int)dialation[0]};
             layer_param->strides = {(int)stride[1], (int)stride[0]};
             layer_param->pads = {(int)padding[1], (int)padding[1], (int)padding[0], (int)padding[0]};
@@ -275,10 +273,10 @@ public:
             layer_info->type_str = "Convolution3D";
             layer_info->name = node->output(0)->debugName();
 
-            const auto& inputs = node->inputs();
+            const auto& inputs = GetEffectiveInputValues(node);
 
-            layer_info->inputs.push_back(node->inputs()[0]->debugName());
-            layer_info->outputs.push_back(node->outputs()[0]->debugName());
+            layer_info->inputs.push_back(inputs[0]->debugName());
+            layer_info->outputs.push_back(node->output(0)->debugName());
 
             auto layer_param = std::make_shared<ConvLayerParam>();
             auto layer_res = new(ConvLayerResource);
@@ -337,7 +335,7 @@ public:
         layer_info->type_str = "ConstantOfShape";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
         const auto& outputs = node->outputs();
         layer_info->inputs.push_back(inputs[1]->debugName());  // size
         layer_info->outputs.push_back(outputs[0]->debugName());
@@ -390,7 +388,7 @@ public:
         layer_info->type_str = "ConstantOfShape";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
         const auto& outputs = node->outputs();
         layer_info->inputs.push_back(inputs[1]->debugName());  // size
         layer_info->outputs.push_back(outputs[0]->debugName());
@@ -437,6 +435,15 @@ public:
     }
 };
 
+// aten::contiguous(Tensor(a) self, *, MemoryFormat memory_format=contiguous_format) -> Tensor(a)
+class ContiguousTorchConverter : public TorchOpConverter {
+public:
+    Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
+        // IGNORE the OP
+        return TNN_OK;
+    }
+};
+
 
 // prim::device(Tensor in) -> Device
 class DeviceTorchConverter : public TorchOpConverter {
@@ -452,13 +459,13 @@ class DtypeTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
         // only prim::dtype + aten::to.device right now.
-        auto users = node->output(0)->uses();
+        auto users = GetEffectiveOutputValue(node, 0)->uses();
         for (int i=0; i<users.size(); i++) {
             auto user_node = users[i].user;
             if (user_node->kind()!=at::aten::to) {
                 return false;
             }
-            if (toIValue(user_node->input(1)) && !toIValue(user_node->input(1)).value().isDevice()) {
+            if (toIValue(GetEffectiveInputValue(user_node,1)) && !toIValue(GetEffectiveInputValue(user_node,1)).value().isDevice()) {
                 return false;
             }
         }
@@ -477,16 +484,16 @@ public:
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
         std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
 
-        auto is_3d = getValue<std::vector<int64_t>>(node->inputs()[1]).size() == 3;
+        auto is_3d = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node,1)).size() == 3;
         if (!is_3d) {
             layer_info->type = LAYER_POOLING;
             layer_info->type_str = "Pooling";
             layer_info->name = node->output(0)->debugName();
 
-            const auto& inputs = node->inputs();
+            const auto& inputs = GetEffectiveInputValues(node);
 
-            layer_info->inputs.push_back(node->inputs()[0]->debugName());
-            layer_info->outputs.push_back(node->outputs()[0]->debugName());
+            layer_info->inputs.push_back(inputs[0]->debugName());
+            layer_info->outputs.push_back(node->output(0)->debugName());
 
             auto layer_param = std::make_shared<PoolingLayerParam>();
             layer_param->name = layer_info->name;
@@ -531,10 +538,10 @@ public:
             layer_info->type_str = "Pooling3D";
             layer_info->name = node->output(0)->debugName();
 
-            const auto& inputs = node->inputs();
+            const auto& inputs = GetEffectiveInputValues(node);
 
-            layer_info->inputs.push_back(node->inputs()[0]->debugName());
-            layer_info->outputs.push_back(node->outputs()[0]->debugName());
+            layer_info->inputs.push_back(inputs[0]->debugName());
+            layer_info->outputs.push_back(node->output(0)->debugName());
 
             auto layer_param = std::make_shared<PoolingLayerParam>();
             layer_param->name = layer_info->name;
@@ -586,10 +593,10 @@ public:
         layer_info->type_str                  = "Pooling";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param  = std::make_shared<PoolingLayerParam>();
         layer_param->name = layer_info->name;
@@ -724,7 +731,7 @@ public:
 
         auto layer_param = std::make_shared<MultidirBroadcastLayerParam>();
 
-        const auto &inputs     = GetInputValues(node);
+        const auto &inputs     = GetEffectiveInputValues(node);
         const auto input0_kind = inputs[0]->node()->kind();
         const auto input1_kind = inputs[1]->node()->kind();
         if (input0_kind == at::prim::Constant || input1_kind == at::prim::Constant) {
@@ -747,7 +754,7 @@ public:
         } else {
             layer_param->weight_input_index = -1;
             if (node->kind() != at::aten::rsub) {
-                for (auto &input : node->inputs()) {
+                for (auto &input : GetEffectiveInputValues(node)) {
                     layer_info->inputs.push_back(input->debugName());
                     if (layer_info->inputs.size() == 2) {
                         break;
@@ -864,7 +871,7 @@ public:
         }
         layer_info->name = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->input(0)->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node,0)->debugName());
         layer_info->outputs.push_back(node->output(0)->debugName());
         layer_info->param = std::make_shared<LayerParam>();
 
@@ -883,23 +890,63 @@ class ExpandTorchConverter : public TorchOpConverter {
 public:
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
         std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
-        layer_info->type = LAYER_EXPAND;
-        layer_info->type_str = "Expand";
-        layer_info->name = node->output(0)->debugName();
+        layer_info->type       = LAYER_EXPAND;
+        layer_info->type_str   = "Expand";
+        layer_info->name       = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->input(0)->debugName());
+        const auto &inputs     = GetEffectiveInputValues(node);
+        layer_info->inputs.push_back(inputs[0]->debugName());
         layer_info->outputs.push_back(node->output(0)->debugName());
         auto layer_param = std::make_shared<ExpandLayerParam>();
 
-        if (toIValue(node->input(1))) {
-            const auto shape_int64 = getValue<std::vector<int64_t>>(node->input(1));
+        if (toIValue(inputs[1])) {
+            const auto shape_int64 = getValue<std::vector<int64_t>>(inputs[1]);
             std::vector<int> shape_int32;
             for (const auto &dim : shape_int64) {
                 shape_int32.emplace_back(static_cast<int>(dim));
             }
             layer_param->shape = shape_int32;
         } else {
-            layer_info->inputs.push_back(node->input(1)->debugName());
+            // Try to Lower Dynamic Expand To Static
+            // e.g:
+            //   %68 : int[] = prim::ListConstruct(%bsz.11, %output_seq_len.1)
+            //   %69 : Tensor = aten::expand(%67, %68, %7)
+            //   %70 : int[] = prim::ListConstruct(%bsz.11, %self.conv_layers.0.layers.0.in_channels)
+            //   %71 : Tensor = aten::reshape(%input_lengths.1, %70)
+            //   %73 : Tensor = aten::expand(%71, %68, %7)
+            // In Example Above, %68, %71 both has length 2, and the both of their inputs are %bsz.11
+            // And in %70, %self.conv_layers.0.layers.0.in_channels is constant.
+            bool expand_able_to_lower_to_static = false;
+            auto in0_node = inputs[0]->node();
+            auto in1_node = inputs[1]->node();
+            if ((in0_node->kind() == at::aten::view || in0_node->kind() == at::aten::reshape) &&
+                GetEffectiveInputValue(in0_node, 1)->node()->kind() == at::prim::ListConstruct &&
+                in1_node->kind() == at::prim::ListConstruct) {
+                auto in0_in1_node = GetEffectiveInputValue(in0_node, 1)->node();
+                if (in0_in1_node->inputs().size() == in1_node->inputs().size()) {
+                    bool all_dims_static = true;
+                    std::vector<int> shape_int32(in0_in1_node->inputs().size(), 0);
+                    for (int i=0; i<in0_in1_node->inputs().size(); i++) {
+                        if (GetEffectiveInputValue(in0_in1_node, i)->debugName() == GetEffectiveInputValue(in1_node, i)->debugName()) {
+                            shape_int32[i] = -1;
+                            continue;
+                        }
+                        if (toIValue(GetEffectiveInputValue(in1_node, i))) {
+                            shape_int32[i] = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(in1_node, i)));
+                            continue;
+                        }
+                        all_dims_static = false;
+                    }
+                    if (all_dims_static) {
+                        expand_able_to_lower_to_static = true;
+                        layer_param->shape = shape_int32;
+                    }
+                }
+            }
+
+            if (!expand_able_to_lower_to_static) {
+                layer_info->inputs.push_back(inputs[1]->debugName());
+            }
         }
         layer_info->param = layer_param;
 
@@ -907,8 +954,8 @@ public:
 
         net_structure->layers.push_back(layer_info);
         
-        if (toIValue(node->input(0))) {
-            net_resource->constant_map[node->input(0)->debugName()] = std::make_shared<RawBuffer>(getValue(node->input(0)));
+        if (toIValue(inputs[0])) {
+            net_resource->constant_map[GetEffectiveInputValue(node,0)->debugName()] = std::make_shared<RawBuffer>(getValue(GetEffectiveInputValue(node, 0)));
         }
 
         return TNN_OK;
@@ -918,14 +965,14 @@ public:
 class ExpandasTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
-        if (node->inputs().size() == 2) {
+        if (GetEffectiveInputValues(node).size() == 2) {
             // only support "norm + clampmin + expandas + div"
-            for (int i = 0; i < node->output()->uses().size(); i++) {
-                if (node->output()->uses()[i].user->kind() != at::aten::div) {
+            for (int i = 0; i < GetEffectiveOutputValue(node, 0)->uses().size(); i++) {
+                if (GetEffectiveOutputValue(node, 0)->uses()[i].user->kind() != at::aten::div) {
                     return false;
                 } else {
                     auto& converter = GetGlobalTorchConvertMap()["aten::div"];
-                    if (!converter->IsSupported(node->output()->uses()[i].user)) {
+                    if (!converter->IsSupported(GetEffectiveOutputValue(node, 0)->uses()[i].user)) {
                         return false;
                     }
                 }
@@ -942,11 +989,11 @@ public:
         layer_info->type_str                  = "Expandas";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->inputs.push_back(node->inputs()[1]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->inputs.push_back(inputs[1]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         layer_info->param = std::make_shared<LayerParam>();
 
@@ -966,10 +1013,10 @@ public:
         layer_info->type_str = "FlattenTorch";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param       = std::make_shared<FlattenTorchLayerParam>();
         layer_param->start_dim = static_cast<int>(getValue<int64_t>(inputs[1]));
@@ -988,11 +1035,11 @@ public:
 class GetItemTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
-        if (at::ListTypePtr list_type = node->input(0)->type()->cast<at::ListType>()) {
+        if (at::ListTypePtr list_type = GetEffectiveInputValue(node, 0)->type()->cast<at::ListType>()) {
             // GetItem of TensorType has been removed from net in TNN-Torch Optimize Passes.
             // Here we deal with aten::__getitem__ of int type only.
             if (list_type->getElementType()->kind()==at::TypeKind::IntType) {
-                if (toIValue(node->input(1))) {
+                if (toIValue(GetEffectiveInputValue(node, 1))) {
                     return true;
                 }
             }
@@ -1006,7 +1053,7 @@ public:
         layer_info->type_str             = "Gather";
         layer_info->name                 = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->input(0)->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
         layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param                 = std::make_shared<GatherLayerParam>();
@@ -1014,7 +1061,7 @@ public:
         layer_param->indices_in_resource = true;
         layer_info->param                = layer_param;
 
-        int indices        = static_cast<int>(getValue<int64_t>(node->input(1)));
+        int indices        = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 1)));
         auto layer_res     = std::make_shared<GatherLayerResource>();
         auto indices_buf   = RawBuffer(sizeof(int), reinterpret_cast<char *>(&indices), {1});
         indices_buf.SetDataType(DATA_TYPE_INT32);
@@ -1042,12 +1089,12 @@ public:
             layer_info->type_str                  = "SplitV";
             layer_info->name                      = split_out_name;
 
-            layer_info->inputs.push_back(node->input(0)->debugName());
+            layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
             layer_info->outputs.push_back(split_out_name+"_0");
             layer_info->outputs.push_back(split_out_name+"_1");
 
             auto layer_param                      = std::make_shared<SplitVLayerParam>();
-            layer_param->axis                     = static_cast<int>(getValue<int64_t>(node->input(1)));
+            layer_param->axis                     = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 1)));
             layer_param->is_split_specified       = false;
             layer_param->slices                   = std::vector<int>(2,-1);
             layer_info->param                     = layer_param;
@@ -1104,7 +1151,7 @@ public:
         layer_info->type_str                  = "GroupNorm";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
         // https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html?highlight=layernorm#torch.nn.LayerNorm
         // Assume TorchScript is well-formed, weight, bias are present,
@@ -1139,8 +1186,8 @@ public:
 class GreaterLessTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
-        if (node->input(0)->node()->kind() == at::prim::Constant ||
-            node->input(1)->node()->kind() == at::prim::Constant) {
+        if (GetEffectiveInputValue(node, 0)->node()->kind() == at::prim::Constant ||
+            GetEffectiveInputValue(node, 1)->node()->kind() == at::prim::Constant) {
             return false;
         }
         return true;
@@ -1163,8 +1210,8 @@ public:
                 layer_info->name                  = node->output(0)->debugName() + "greater_or_less";
                 layer_info->outputs.push_back(node->output(0)->debugName() + "greater_or_less");
             }
-            layer_info->inputs.push_back(node->input(0)->debugName());
-            layer_info->inputs.push_back(node->input(1)->debugName());
+            layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+            layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName());
             layer_info->param = std::make_shared<MultidirBroadcastLayerParam>();
 
             ADD_INPUTS_AND_OUTPUTS;
@@ -1201,7 +1248,7 @@ public:
         layer_info->type_str                  = "LayerNorm";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
         // https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html?highlight=layernorm#torch.nn.LayerNorm
         // Assume TorchScript is well-formed, weight, bias are present,
@@ -1209,7 +1256,7 @@ public:
         layer_info->inputs.push_back(inputs[0]->debugName()); // input
         layer_info->inputs.push_back(inputs[2]->debugName()); // weight
         layer_info->inputs.push_back(inputs[3]->debugName()); // bias
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         const auto normalized_shape = getValue<std::vector<int64_t>>(inputs[1]);
         const auto eps              = getValue<float>(inputs[4]);
@@ -1234,7 +1281,7 @@ public:
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
         // aten::linear include batched cases, which is not supported by Inn
         // Convert aten::linear to matmul + add (with bias), matmul only (without bias)
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
         const auto weight = inputs[1];
         const auto bias = inputs[2];
         auto weight_buf = getValue(weight);
@@ -1250,7 +1297,7 @@ public:
             layer_info->type_str = "MatMul";
             layer_info->name = matmul_out_name;
 
-            layer_info->inputs.push_back(node->inputs()[0]->debugName());
+            layer_info->inputs.push_back(inputs[0]->debugName());
             layer_info->outputs.push_back(matmul_out_name);
 
             const int dim0 = weight_buf.GetBufferDims()[0];
@@ -1311,7 +1358,7 @@ public:
             layer_param->weight_input_index = 1;
             layer_info->param = layer_param;
             layer_info->inputs.push_back(matmul_out_name);
-            layer_info->outputs.push_back(node->outputs()[0]->debugName());
+            layer_info->outputs.push_back(node->output(0)->debugName());
 
             auto layer_res = new EltwiseLayerResource();
             net_resource->resource_map[layer_info->name] = std::shared_ptr<LayerResource>(layer_res);
@@ -1339,9 +1386,9 @@ public:
         layer_info->type_str = "MatMul";
         layer_info->name = node->output(0)->debugName();
 
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
-        const auto& inputs     = node->inputs();
+        const auto& inputs     = GetEffectiveInputValues(node);
         const auto input0_kind = inputs[0]->node()->kind();
         const auto input1_kind = inputs[1]->node()->kind();
         
@@ -1385,12 +1432,12 @@ class NormTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
         // only support "norm + clamp_min + expand_as + div"
-        for (int i = 0; i < node->output()->uses().size(); i++) {
-            if (node->output()->uses()[i].user->kind() != at::aten::clamp_min) {
+        for (int i = 0; i < GetEffectiveOutputValue(node, 0)->uses().size(); i++) {
+            if (GetEffectiveOutputValue(node, 0)->uses()[i].user->kind() != at::aten::clamp_min) {
                 return false;
             } else {
                 auto& converter = GetGlobalTorchConvertMap()["aten::clamp_min"];
-                if (!converter->IsSupported(node->output()->uses()[i].user)) {
+                if (!converter->IsSupported(GetEffectiveOutputValue(node, 0)->uses()[i].user)) {
                     return false;
                 }
             }
@@ -1404,10 +1451,10 @@ public:
         layer_info->type_str                  = "Norm";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<NormLayerParam>();
         layer_info->param = layer_param;
@@ -1430,12 +1477,12 @@ public:
         layer_info->name = node->output(0)->debugName();
 
         // https://pytorch.org/docs/stable/generated/torch.permute.html?highlight=permute#torch.permute
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<PermuteLayerParam>();
         std::vector<int> permute_orders;
-        for (auto dim : getValue<std::vector<int64_t>>(node->inputs()[1])) {
+        for (auto dim : getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 1))) {
             permute_orders.emplace_back(static_cast<int>(dim));
         }
         layer_param->orders = permute_orders;
@@ -1457,10 +1504,10 @@ public:
         layer_info->type_str = "Clip";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<ClipLayerParam>();
 
@@ -1485,10 +1532,10 @@ public:
         layer_info->type_str = "HardSigmoid";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<HardSigmoidLayerParam>();
 
@@ -1513,10 +1560,10 @@ public:
         layer_info->type_str = "HardSwish";
         layer_info->name = node->output(0)->debugName();
 
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<HardSwishLayerParam>();
 
@@ -1548,10 +1595,10 @@ public:
         layer_info->type_str                  = "BatchNormCxx";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         const auto weight       = inputs[1];
         const auto bias         = inputs[2];
@@ -1630,12 +1677,12 @@ public:
         layer_info->type_str                  = "Concat";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto inputs      = node->inputs();
+        const auto inputs      = GetEffectiveInputValues(node);
         const auto tensor_list = inputs[0];
-        for (const auto input : tensor_list->node()->inputs()) {
+        for (const auto input : GetEffectiveInputValues(tensor_list->node())) {
             layer_info->inputs.push_back(input->debugName());
         }
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param  = std::make_shared<ConcatLayerParam>();
         layer_param->axis = static_cast<int>(getValue<int64_t>(inputs[1]));
@@ -1657,13 +1704,12 @@ public:
         layer_info->type_str                  = "Unsqueeze";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<UnsqueezeLayerParam>();
-
         layer_param->axes = {static_cast<int>(getValue<int64_t>(inputs[1]))};
 
         layer_info->param = layer_param;
@@ -1684,10 +1730,10 @@ public:
         layer_info->type_str                  = "Clone";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         layer_info->param = std::make_shared<LayerParam>();
 
@@ -1699,38 +1745,68 @@ public:
     }
 };
 
-
-// aten::gather(Tensor self, int dim, Tensor index, *, bool sparse_grad=False) -> Tensor
+// aten::index.Tensor(Tensor self, Tensor?[] indices) -> Tensor
+// aten::select(Tensor self, int dim, Tensor index, *, bool sparse_grad=False) -> Tensor
 // aten::embedding(Tensor weight, Tensor indices, int padding_idx=-1, bool scale_grad_by_freq=False, bool sparse=False) -> Tensor
 class GatherTorchConverter : public TorchOpConverter {
 public:
+    bool IsSupported(const torch::jit::Node *node) {
+        // TensorType: ListConstruct + index
+        if (node->kind()==at::aten::index) {
+            const auto& inputs = GetEffectiveInputValues(node);
+            auto in1_node = GetEffectiveInputValue(node, 1)->node();
+            if (!toIValue(inputs[0])) {
+                // aten::index only support input0 (Tensor::self) in Constant.
+                // Other input type combination may be Added in the future.
+                return false;
+            }
+            if (in1_node->kind() != at::prim::ListConstruct) {
+                return false;
+            }
+            if (GetEffectiveInputValues(in1_node).size() != 1) {
+                // Currently, OP at::aten::index only support one input tensor
+                // That is, result of at::prim::ListConstruct should be Tensor?[] with only one element.
+                return false;
+            }
+        }
+        return true;
+    }
+    
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
         std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
         layer_info->type                      = LAYER_GATHER;
         layer_info->type_str                  = "Gather";
         layer_info->name                      = node->output(0)->debugName();
 
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<GatherLayerParam>();
         auto layer_res   = new GatherLayerResource();
 
-        if (node->kind()==at::aten::select) {
-            layer_info->inputs.push_back(node->input(0)->debugName());
-            layer_param->axis                = static_cast<int>(getValue<int64_t>(node->input(1)));
+        if (node->kind()==at::aten::index) {
+            layer_info->inputs.push_back(GetEffectiveInputValue(GetEffectiveInputValue(node, 1)->node(), 0)->debugName());
+            layer_param->axis                = 0;
+            layer_param->data_in_resource    = true;
+            layer_param->indices_in_resource = false;
+
+            auto data_buf = getValue(GetEffectiveInputValue(node, 0));
+            layer_res->data = data_buf;
+        } else if (node->kind()==at::aten::select) {
+            layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+            layer_param->axis                = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 1)));
             layer_param->data_in_resource    = false;
             layer_param->indices_in_resource = true;
 
-            int index        = getValue<int64_t>(node->input(2));
+            int index        = getValue<int64_t>(GetEffectiveInputValue(node, 2));
             auto indices_buf = RawBuffer(4, reinterpret_cast<char *>(&index), {});
             indices_buf.SetDataType(DATA_TYPE_INT32);
             layer_res->indices = indices_buf;
         } else { // node->kind()==at::aten::embedding
-            layer_info->inputs.push_back(node->input(1)->debugName()); // indices
+            layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName()); // indices
             layer_param->data_in_resource    = true;
             layer_param->indices_in_resource = false;
 
-            auto weight_buf = getValue(node->input(0));
+            auto weight_buf = getValue(GetEffectiveInputValue(node, 0));
             
             layer_res->data = weight_buf;
         }
@@ -1755,11 +1831,11 @@ public:
         layer_info->type_str = "LogSoftmax";
         layer_info->name = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<LogSoftmaxLayerParam>();
-        layer_param->axis = static_cast<int>(getValue<int64_t>(node->input(1)));
+        layer_param->axis = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 1)));
         layer_info->param = layer_param;
 
         ADD_INPUTS_AND_OUTPUTS;
@@ -1774,8 +1850,7 @@ public:
 class StridedSliceTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
-        //const auto &inputs = node->inputs();
-        const auto &inputs = GetInputValues(node);
+        const auto &inputs = GetEffectiveInputValues(node);
         if ((inputs[2]->type()->kind() != c10::TypeKind::NoneType && !toIValue(inputs[2])) ||
             (inputs[3]->type()->kind() != c10::TypeKind::NoneType && !toIValue(inputs[3]))) {
             // StridedSliceV2 with dynamic begin or and is not supported yet.
@@ -1790,10 +1865,10 @@ public:
         layer_info->type_str                  = "StridedSliceV2";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = GetInputValues(node);
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<StrideSliceV2LayerParam>();
 
@@ -1827,15 +1902,15 @@ public:
 class SizeTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
-        if (node->inputs().size() == 2) {
+        if (GetEffectiveInputValues(node).size() == 2) {
             // aten::size(%in_tensor, %dim)
-            for (int i = 0; i < node->output()->uses().size(); i++) {
-                if (node->output()->uses()[i].user->kind() != at::prim::ListConstruct) {
+            for (int i = 0; i < GetEffectiveOutputValue(node, 0)->uses().size(); i++) {
+                if (GetEffectiveOutputValue(node, 0)->uses()[i].user->kind() != at::prim::ListConstruct) {
                     //return false;
                     return true;
                 } else {
                     auto& converter = GetGlobalTorchConvertMap()["prim::ListConstruct"];
-                    if (!converter->IsSupported(node->output()->uses()[i].user)) {
+                    if (!converter->IsSupported(GetEffectiveOutputValue(node, 0)->uses()[i].user)) {
                         return false;
                     }
                 }
@@ -1847,14 +1922,14 @@ public:
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
         // generate shape layer
         {
-            std::string shape_out_name = node->inputs().size() == 2 ? node->output(0)->debugName() + "_shape" : node->output(0)->debugName();
+            std::string shape_out_name = GetEffectiveInputValues(node).size() == 2 ? node->output(0)->debugName() + "_shape" : node->output(0)->debugName();
 
             std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
             layer_info->type                      = LAYER_SHAPE;
             layer_info->type_str                  = "Shape";
             layer_info->name                      = shape_out_name;
 
-            layer_info->inputs.push_back(node->inputs()[0]->debugName());
+            layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
             layer_info->outputs.push_back(shape_out_name);
 
             layer_info->param = std::make_shared<LayerParam>();
@@ -1864,7 +1939,7 @@ public:
             net_structure->layers.push_back(layer_info);
         }
 
-        if (node->inputs().size() == 2) {
+        if (GetEffectiveInputValues(node).size() == 2) {
             // generate gather layer
             {
                 std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
@@ -1872,8 +1947,8 @@ public:
                 layer_info->type_str                  = "Gather";
                 layer_info->name                      = node->output(0)->debugName() + "_gather";
 
-                layer_info->inputs.push_back(node->outputs()[0]->debugName() + "_shape");
-                layer_info->outputs.push_back(node->outputs()[0]->debugName() + "_gather");
+                layer_info->inputs.push_back(node->output(0)->debugName() + "_shape");
+                layer_info->outputs.push_back(node->output(0)->debugName() + "_gather");
 
                 auto layer_param                 = std::make_shared<GatherLayerParam>();
                 layer_param->axis                = 0;
@@ -1881,7 +1956,7 @@ public:
 
                 layer_info->param = layer_param;
 
-                const auto indices = getValue(node->inputs()[1]);
+                const auto indices = getValue(GetEffectiveInputValue(node, 1));
                 auto layer_res     = std::make_shared<GatherLayerResource>();
                 layer_res->indices = indices;
 
@@ -1898,8 +1973,8 @@ public:
                 layer_info->type_str                  = "Unsqueeze";
                 layer_info->name                      = node->output(0)->debugName();
 
-                layer_info->inputs.push_back(node->outputs()[0]->debugName() + "_gather");
-                layer_info->outputs.push_back(node->outputs()[0]->debugName());
+                layer_info->inputs.push_back(node->output(0)->debugName() + "_gather");
+                layer_info->outputs.push_back(node->output(0)->debugName());
 
                 auto layer_param  = std::make_shared<UnsqueezeLayerParam>();
                 layer_param->axes = {0};
@@ -1928,11 +2003,11 @@ public:
         layer_info->name = node->output(0)->debugName();
 
         // https://pytorch.org/docs/stable/generated/torch.nn.Softmax.html?highlight=softmax#torch.nn.Softmax
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<SoftmaxLayerParam>();
-        layer_param->axis = static_cast<int>(getValue<int64_t>(node->inputs()[1]));
+        layer_param->axis = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 1)));
         layer_info->param = layer_param;
 
         ADD_INPUTS_AND_OUTPUTS;
@@ -1948,7 +2023,7 @@ public:
 class SplitTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
-        for (const auto& use : node->output(0)->uses()) {
+        for (const auto& use : GetEffectiveOutputValue(node, 0)->uses()) {
             if (use.user->kind()!=c10::prim::ListUnpack && use.user->kind()!=at::aten::cat){
                 return false;
             }
@@ -1957,21 +2032,21 @@ public:
     }
 
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
-        auto unpack_node      = node->output(0)->uses()[0].user;
+        auto unpack_node      = GetEffectiveOutputValue(node, 0)->uses()[0].user;
         const int output_size = unpack_node->outputs().size();
-        const int axis        = static_cast<int>(getValue<int64_t>(node->inputs()[2]));
+        const int axis        = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 2)));
 
         int split_size;
         int section_start_pos = 0;
         std::vector<int64_t> split_sections;
         bool is_split_sections = false;
 
-        if (toIValue(node->input(1)).value().isList()) {
+        if (toIValue(GetEffectiveInputValue(node, 1)).value().isList()) {
             // NOTE: size of split sections == output_size of prim::ListUnpack
             is_split_sections = true;
-            split_sections = getValue<std::vector<int64_t>>(node->inputs()[1]);
+            split_sections = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 1));
         } else {
-            split_size = static_cast<int>(getValue<int64_t>(node->inputs()[1]));
+            split_size = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 1)));
         }
 
         for (int i = 0; i < output_size; i++) {
@@ -1980,7 +2055,7 @@ public:
             layer_info->type_str                  = "StridedSliceV2";
             layer_info->name                      = unpack_node->output(i)->debugName();
 
-            layer_info->inputs.push_back(node->inputs()[0]->debugName());
+            layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
             layer_info->outputs.push_back(unpack_node->output(i)->debugName());
 
             auto layer_param = std::make_shared<StrideSliceV2LayerParam>();
@@ -2017,7 +2092,7 @@ public:
 class ToTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
-        const auto& inputs = node->inputs();
+        const auto& inputs = GetEffectiveInputValues(node);
         if (node->kind()==at::aten::to) {
             int dtype_idx = 1;
             if (toIValue(inputs[1]) && toIValue(inputs[1]).value().isDevice()) {
@@ -2043,7 +2118,7 @@ public:
                 }
             } else {
                 // dtype was not able to get. equal to CastTo, TypeAs
-                if (node->input(dtype_idx)->node()->kind()==at::prim::dtype) {
+                if (inputs[dtype_idx]->node()->kind()==at::prim::dtype) {
                     return true;
                 }
             }
@@ -2059,18 +2134,18 @@ public:
         layer_info->type_str = "Cast";
         layer_info->name = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<CastLayerParam>();
 
         if (node->kind()==at::aten::to) {
             int dtype_idx = 1;
-            if (toIValue(node->input(1)) && toIValue(node->input(1)).value().isDevice()) {
+            if (toIValue(GetEffectiveInputValue(node, 1)) && toIValue(GetEffectiveInputValue(node, 1)).value().isDevice()) {
                 dtype_idx = 2;
             }
-            if (toIValue(node->input(dtype_idx))) {
-                int64_t dtype = getValue<int64_t>(node->input(dtype_idx));
+            if (toIValue(GetEffectiveInputValue(node, dtype_idx))) {
+                int64_t dtype = getValue<int64_t>(GetEffectiveInputValue(node, dtype_idx));
                 if (dtype==3 || dtype==4 || dtype==11) {
                     // Cast bool, int32 and int64 to int32.
                     layer_param->to = DATA_TYPE_INT32;
@@ -2080,11 +2155,11 @@ public:
                 }
             } else {
                 // input[dtype_ix] is result of prev prim::dtype, set input of prim::dtype as second input of CAST
-                layer_info->inputs.push_back(node->input(dtype_idx)->node()->input(0)->debugName());
+                layer_info->inputs.push_back(GetEffectiveInputValue(GetEffectiveInputValue(node, dtype_idx)->node(), 0)->debugName());
             }
         } else { // node->kind()==at::aten::type_as
             // CastAs
-            layer_info->inputs.push_back(node->input(1)->debugName());
+            layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName());
         }
 
         layer_info->param = layer_param;
@@ -2106,21 +2181,50 @@ public:
         layer_info->type_str                  = "ReshapeTorch";
         layer_info->name                      = node->output(0)->debugName();
 
-        for (const auto &input : node->inputs()) {
-            layer_info->inputs.push_back(input->debugName());
-        }
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        //for (const auto &input : GetEffectiveInputValues(node)) {
+        //    layer_info->inputs.push_back(input->debugName());
+        //}
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
-        auto layer_param      = std::make_shared<ReshapeLayerParam>();
+        auto layer_param = std::make_shared<ReshapeLayerParam>();
 
-        if (!toIValue(node->inputs()[1])) {
-            // reshpae param need to be calc in runtime
-            layer_param->num_axes = 0;
+        if (GetEffectiveInputValue(node, 1)->node()->kind() == at::prim::ListConstruct) {
+            std::vector<int> reshape_dims;
+            auto list_element_values = GetEffectiveInputValues(GetEffectiveInputValue(node, 1)->node());
+            for (int i=0; i<list_element_values.size(); i++) {
+                if (!toIValue(list_element_values[i])) {
+                    reshape_dims.push_back(-1);
+                } else {
+                    reshape_dims.push_back(static_cast<int>(getValue<int64_t>(list_element_values[i])));
+                }
+            }
+            if (std::count(reshape_dims.begin(), reshape_dims.end(), -1)>1) {
+                layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName());
+                layer_param->num_axes = 0;
+            } else {
+                layer_param->num_axes = reshape_dims.size();
+                layer_param->shape = reshape_dims;
+            }
         } else {
-            const auto shapes     = getValue<std::vector<int64_t>>(node->inputs()[1]);
-            layer_param->num_axes = static_cast<int>(shapes.size());
-            for (const auto &shape : shapes) {
-                layer_param->shape.emplace_back((int)shape);
+            if (!toIValue(GetEffectiveInputValue(node, 1))) {
+                // reshpae param need to be calc in runtime
+                layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName());
+                layer_param->num_axes = 0;
+            } else {
+                const auto shapes     = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 1));
+                layer_param->num_axes = static_cast<int>(shapes.size());
+                for (const auto &shape : shapes) {
+                    layer_param->shape.emplace_back((int)shape);
+                }
+            }
+        }
+        
+        // Rare Cases when input 0 is Constant.
+        if (toIValue((GetEffectiveInputValue(node, 0)))) {
+            auto in0_value = GetEffectiveInputValue(node, 0);
+            if (in0_value->type()->kind() == c10::TypeKind::TensorType) {
+                net_resource->constant_map[in0_value->debugName()] = std::make_shared<RawBuffer>(getValue(in0_value));
             }
         }
 
@@ -2143,10 +2247,10 @@ public:
         layer_info->type_str                  = "InnerProduct";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[1]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[1]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param  = std::make_shared<InnerProductLayerParam>();
         auto layer_res    = new (InnerProductLayerResource);
@@ -2190,12 +2294,12 @@ public:
         layer_info->type_str = "PermuteV2";
         layer_info->name = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<PermuteV2LayerParam>();
-        layer_param->dim0 = static_cast<int>(getValue<int64_t>(node->inputs()[1]));
-        layer_param->dim1 = static_cast<int>(getValue<int64_t>(node->inputs()[2]));
+        layer_param->dim0 = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 1)));
+        layer_param->dim1 = static_cast<int>(getValue<int64_t>(GetEffectiveInputValue(node, 2)));
 
         layer_info->param = layer_param;
 
@@ -2216,7 +2320,7 @@ public:
     bool IsSupported(const torch::jit::Node *node) {
         // in this mode, upsample param dims will be calc runtime
         // Todo: trt shape tensor should expand hw tensor to nchw tensor
-        if (!toIValue(node->input(1))) {
+        if (!toIValue(GetEffectiveInputValue(node, 1))) {
             return false;
         }
         return true;
@@ -2228,61 +2332,61 @@ public:
         layer_info->type_str = "Upsample";
         layer_info->name = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<UpsampleLayerParam>();
         switch (node->kind()) {
             case at::aten::upsample_nearest2d:
                 layer_param->mode = 1;
-                if (node->inputs().size() == 3) {
-                    if (node->input(2)->type()->kind() == c10::TypeKind::NoneType) {
+                if (GetEffectiveInputValues(node).size() == 3) {
+                    if (GetEffectiveInputValue(node, 2)->type()->kind() == c10::TypeKind::NoneType) {
                         // scale is none, use dims
-                        layer_info->inputs.push_back(node->input(1)->debugName());
+                        layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName());
                         layer_param->scales = {0.f, 0.f};
                     } else {
                         // scale is not none, use scale
-                        auto scales = getValue<std::vector<double>>(node->input(2));
+                        auto scales = getValue<std::vector<double>>(GetEffectiveInputValue(node, 2));
                         layer_param->scales = {(float)scales[1], (float)scales[0]};
                     }
-                } else if (node->inputs().size() == 4) {
-                    if (!toIValue(node->input(1))) {
-                        layer_info->inputs.push_back(node->input(1)->debugName() + "_roi");
-                        layer_info->inputs.push_back(node->input(1)->debugName() + "_scale");
-                        layer_info->inputs.push_back(node->input(1)->debugName());
+                } else if (GetEffectiveInputValues(node).size() == 4) {
+                    if (!toIValue(GetEffectiveInputValue(node, 1))) {
+                        layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName() + "_roi");
+                        layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName() + "_scale");
+                        layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName());
                         layer_param->scales = {0.f, 0.f};
                         // empty raw buffer just makes tnn not crash
                         net_resource->constant_map[layer_info->inputs[1]] = std::make_shared<RawBuffer>();
                         net_resource->constant_map[layer_info->inputs[2]] = std::make_shared<RawBuffer>();
                     } else {
-                        layer_param->scales.push_back(getValue<float>(node->input(3)));
-                        layer_param->scales.push_back(getValue<float>(node->input(2)));
+                        layer_param->scales.push_back(getValue<float>(GetEffectiveInputValue(node, 3)));
+                        layer_param->scales.push_back(getValue<float>(GetEffectiveInputValue(node, 2)));
                     }
                 }
 
                 break;
             case at::aten::upsample_bilinear2d:
                 layer_param->mode = 2;
-                if (node->inputs().size() == 4) {
-                    layer_param->align_corners = getValue<bool>(node->input(2));
-                    if (node->input(3)->type()->kind() == c10::TypeKind::NoneType) {
+                if (GetEffectiveInputValues(node).size() == 4) {
+                    layer_param->align_corners = getValue<bool>(GetEffectiveInputValue(node, 2));
+                    if (GetEffectiveInputValue(node, 3)->type()->kind() == c10::TypeKind::NoneType) {
                         // scale is none, use dims
-                        layer_info->inputs.push_back(node->input(1)->debugName());
+                        layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName());
                         layer_param->scales = {0.f, 0.f};
                     } else {
                         // scale is not none, use scale
-                        auto scales = getValue<std::vector<double>>(node->input(3));
+                        auto scales = getValue<std::vector<double>>(GetEffectiveInputValue(node, 3));
                         layer_param->scales = {(float)scales[1], (float)scales[0]};
                     }
-                } else if (node->inputs().size() == 5) {
-                    layer_param->align_corners = getValue<bool>(node->input(2));
-                    if (node->input(3)->type()->kind() == c10::TypeKind::NoneType) {
+                } else if (GetEffectiveInputValues(node).size() == 5) {
+                    layer_param->align_corners = getValue<bool>(GetEffectiveInputValue(node, 2));
+                    if (GetEffectiveInputValue(node, 3)->type()->kind() == c10::TypeKind::NoneType) {
                         // scale is none, use dims
-                        layer_info->inputs.push_back(node->input(1)->debugName());
+                        layer_info->inputs.push_back(GetEffectiveInputValue(node, 1)->debugName());
                         layer_param->scales = {0.f, 0.f};
                     } else {
-                        layer_param->scales.push_back(getValue<float>(node->input(4)));
-                        layer_param->scales.push_back(getValue<float>(node->input(3)));
+                        layer_param->scales.push_back(getValue<float>(GetEffectiveInputValue(node, 4)));
+                        layer_param->scales.push_back(getValue<float>(GetEffectiveInputValue(node, 3)));
                     }
                 }
 
@@ -2309,15 +2413,15 @@ public:
         layer_info->type_str = "ReduceMean";
         layer_info->name = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<ReduceLayerParam>();
-        auto axis = getValue<std::vector<int64_t>>(node->inputs()[1]);
+        auto axis = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 1));
         for(auto value : axis) {
             layer_param->axis.push_back(value);
         }
-        layer_param->keep_dims = getValue<bool>(node->inputs()[2]);
+        layer_param->keep_dims = getValue<bool>(GetEffectiveInputValue(node, 2));
 
         switch (node->kind()) {
             case at::aten::mean:
@@ -2349,9 +2453,9 @@ public:
         layer_info->type_str                  = "Range";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
         const int num_inputs = inputs.size();
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
         auto layer_param  = std::make_shared<RangeLayerParam>();
 
         const auto dtype = inputs[num_inputs-4]->type()->kind();
@@ -2403,6 +2507,64 @@ public:
     }
 };
 
+// Only static Roll are supported.
+// aten::roll(Tensor self, int[1] shifts, int[1] dims=[]) -> Tensor
+class RollTorchConverter : public TorchOpConverter {
+public:
+    bool IsSupported(const torch::jit::Node *node) {
+        // Dynamic Roll Not Supported
+        const auto& inputs = GetEffectiveInputValues(node);
+        if (toIValue(inputs[0])) {
+            // Does Not Support input 0 Constant.
+            return false;
+        }
+        if (!toIValue(inputs[1])) {
+            return false;
+        }
+        if (inputs[2]->type()->kind() == c10::TypeKind::NoneType && !toIValue(inputs[2])) {
+            return false;
+        }
+        return true;
+    }
+
+    Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
+        std::shared_ptr<LayerInfo> layer_info = std::make_shared<LayerInfo>();
+        layer_info->type                      = LAYER_ROLL;
+        layer_info->type_str                  = "Roll";
+        layer_info->name                      = node->output(0)->debugName();
+
+        const auto &inputs = GetEffectiveInputValues(node);
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
+
+        auto layer_param  = std::make_shared<RollLayerParam>();
+        std::vector<int64_t> shifts_int64 = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 1));
+        std::vector<int64_t> dims_int64;
+        if (GetEffectiveInputValue(node, 2)->type()->kind() != c10::TypeKind::NoneType) {
+            dims_int64 = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 2));
+        } else {
+            for (int i=0; i<shifts_int64.size(); i++) {
+                dims_int64.push_back(i);
+            }
+        }
+        std::vector<int> shifts;
+        std::vector<int> dims;
+        for (int i=0; i<shifts_int64.size(); i++) {
+            shifts.push_back(static_cast<int>(shifts_int64[i]));
+            dims.push_back(static_cast<int>(dims_int64[i]));
+        }
+        layer_param->shifts = shifts;
+        layer_param->dims = dims;
+        layer_info->param = layer_param;
+
+        ADD_INPUTS_AND_OUTPUTS;
+
+        net_structure->layers.push_back(layer_info);
+
+        return TNN_OK;
+    }
+};
+
 
 // func: constant_pad_nd(const Tensor & self, IntArrayRef pad, const Scalar & value);
 // func: reflection_pad2d(Tensor self, int[4] padding) -> Tensor
@@ -2411,7 +2573,7 @@ public:
     bool IsSupported(const torch::jit::Node *node) {
         // Do not support Pad > 3d.
         if (node->kind()==at::aten::constant_pad_nd) {
-            int pad_size = getValue<std::vector<int64_t>>(node->input(1)).size();
+            int pad_size = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 1)).size();
             if (pad_size!=2 && pad_size!=4 && pad_size!=6) {
                 return false;
             }
@@ -2425,13 +2587,13 @@ public:
         layer_info->type_str                  = "Pad";
         layer_info->name                      = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->input(0)->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
         layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<PadLayerParam>();
         if (node->kind()==at::aten::constant_pad_nd) {
             layer_param->type = 0;
-            const auto pads   = getValue<std::vector<int64_t>>(node->input(1));
+            const auto pads   = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 1));
             if (pads.size()==2) {
                 layer_param->pads = {(int)(pads[0]), (int)(pads[1]), 0, 0, 0, 0};
             } else if (pads.size()==4) {
@@ -2439,14 +2601,14 @@ public:
             } else if (pads.size()==6) {
                 layer_param->pads = {(int)(pads[0]), (int)(pads[1]), (int)(pads[2]), (int)(pads[3]), (int)(pads[4]), (int)(pads[5])};
             }
-            if (!toIValue(node->input(2))) {
+            if (!toIValue(GetEffectiveInputValue(node, 2))) {
                 layer_param->value = 0.0f;
             } else {
-                layer_param->value = getValue<float>(node->input(2));
+                layer_param->value = getValue<float>(GetEffectiveInputValue(node, 2));
             }
         } else if (node->kind()==at::aten::reflection_pad2d) {
             layer_param->type = 1;
-            const auto pads   = getValue<std::vector<int64_t>>(node->input(1));
+            const auto pads   = getValue<std::vector<int64_t>>(GetEffectiveInputValue(node, 1));
             layer_param->pads = {(int)(pads[2]), (int)(pads[3]), (int)(pads[0]), (int)(pads[1]), 0, 0};
         }
 
@@ -2464,12 +2626,12 @@ class ClampminTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
         // only support "norm + clampmin + expandas + div"
-        for (int i = 0; i < node->output()->uses().size(); i++) {
-            if (node->output()->uses()[i].user->kind() != at::aten::expand_as) {
+        for (int i = 0; i < GetEffectiveOutputValue(node, 0)->uses().size(); i++) {
+            if (GetEffectiveOutputValue(node, 0)->uses()[i].user->kind() != at::aten::expand_as) {
                 return false;
             } else {
                 auto& converter = GetGlobalTorchConvertMap()["aten::expand_as"];
-                if (!converter->IsSupported(node->output()->uses()[i].user)) {
+                if (!converter->IsSupported(GetEffectiveOutputValue(node, 0)->uses()[i].user)) {
                     return false;
                 }
             }
@@ -2483,10 +2645,10 @@ public:
         layer_info->type_str                  = "Clampmin";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<ClampminLayerParam>();
         layer_info->param = layer_param;
@@ -2509,26 +2671,26 @@ public:
         layer_info->type_str                  = "Clip";
         layer_info->name                      = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param       = std::make_shared<ClipLayerParam>();
         
-        auto min_dtype_kind = node->input(1)->type()->kind();
-        auto max_dtype_kind = node->input(2)->type()->kind();
+        auto min_dtype_kind = GetEffectiveInputValue(node, 1)->type()->kind();
+        auto max_dtype_kind = GetEffectiveInputValue(node, 2)->type()->kind();
         if (min_dtype_kind == c10::TypeKind::NoneType) {
             layer_param->min = -FLT_MAX;
         } else if (min_dtype_kind == c10::TypeKind::IntType) {
-            layer_param->min = float(getValue<int64_t>(node->input(1)));
+            layer_param->min = float(getValue<int64_t>(GetEffectiveInputValue(node, 1)));
         } else { // FloatType
-            layer_param->min = getValue<float>(node->input(1));
+            layer_param->min = getValue<float>(GetEffectiveInputValue(node, 1));
         }
         if (max_dtype_kind == c10::TypeKind::NoneType) {
             layer_param->max = FLT_MAX;
         } else if (max_dtype_kind == c10::TypeKind::IntType) {
-            layer_param->max = float(getValue<int64_t>(node->input(2)));
+            layer_param->max = float(getValue<int64_t>(GetEffectiveInputValue(node, 2)));
         } else { // FloatType
-            layer_param->max = getValue<float>(node->input(2));
+            layer_param->max = getValue<float>(GetEffectiveInputValue(node, 2));
         }
 
         layer_info->param = layer_param;
@@ -2550,17 +2712,17 @@ public:
         layer_info->type_str                  = "Power";
         layer_info->name                      = node->output(0)->debugName();
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param         = std::make_shared<PowLayerParam>();
-        const auto exponent_type = node->input(1)->type()->kind();
+        const auto exponent_type = GetEffectiveInputValue(node, 1)->type()->kind();
         switch (exponent_type) {
             case c10::TypeKind::IntType:
-                layer_param->exponent = static_cast<float>(getValue<int>(node->input(1)));
+                layer_param->exponent = static_cast<float>(getValue<int>(GetEffectiveInputValue(node, 1)));
                 break;
             case c10::TypeKind::FloatType:
-                layer_param->exponent = getValue<float>(node->input(1));
+                layer_param->exponent = getValue<float>(GetEffectiveInputValue(node, 1));
                 break;
             default:
                 break;
@@ -2584,11 +2746,11 @@ public:
         layer_info->type_str                  = "TopK";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[1]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
+        layer_info->outputs.push_back(node->output(1)->debugName());
 
         auto layer_param = std::make_shared<TopKLayerParam>();
 
@@ -2617,20 +2779,45 @@ public:
 class ListTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
-        // only support size + listconstruct, listconstruct + cat
-        if (node->inputs().size() == 0) return false;
-        auto type = node->inputs().at(0)->type();
+        // Supported Combinations:
+        // IntType:    size + ListConstruct
+        // TensorType: ListConstruct + cat
+        // TensorType: ListConstruct + index
+        if (GetEffectiveInputValues(node).size() == 0) {
+            return false;
+        }
+
+        // When Judging Effective Input Value here, aten::Int and prim::NumToTensor should be
+        // recoginzed as Effective Input, other OPs like aten::contiguous are still regarded as Non-Effective
+        auto type = GetEffectiveInputValue(node, 0)->type();
+        if (node->input(0)->node()->kind()==at::aten::Int || node->input(0)->node()->kind()==at::prim::NumToTensor) {
+            type = node->input(0)->type();
+        }
 
         if (type->kind() == c10::TypeKind::IntType) {
-            auto user_type_str = node->output(0)->uses()[0].user->kind().toQualString();
+            auto user_type_str = GetEffectiveOutputValue(node, 0)->uses()[0].user->kind().toQualString();
             if (GetGlobalTorchConvertMap().count(user_type_str)) {
                 auto& converter = GetGlobalTorchConvertMap()[user_type_str];
-                if (converter->IsSupported(node->output(0)->uses()[0].user)) {
+                if (converter->IsSupported(GetEffectiveOutputValue(node, 0)->uses()[0].user)) {
                     return true;
                 }
             }
         } else if (type->kind() == c10::TypeKind::TensorType) {
-            if (node->output(0)->uses()[0].user->kind() == c10::aten::cat) {
+            auto list_users = GetEffectiveOutputValue(node, 0)->uses();
+            bool all_users_supported = true;
+            for (const auto & use : list_users) {
+                if (use.user->kind() != c10::aten::cat && use.user->kind() != at::aten::index) {
+                    all_users_supported = false;
+                }
+                if (use.user->kind() == at::aten::index) {
+                    // Currently, OP at::aten::index only support one input tensor
+                    // That is, Tensor?[] with only one element.
+                    if (GetEffectiveInputValues(node).size() != 1) {
+                        all_users_supported = false;
+                    }
+                }
+            }
+            if (all_users_supported) {
                 return true;
             }
         }
@@ -2639,7 +2826,11 @@ public:
     }
 
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
-        auto input_type = node->input(0)->type();
+        auto input_type = GetEffectiveInputValue(node, 0)->type();
+        if (node->input(0)->node()->kind()==at::aten::Int || node->input(0)->node()->kind()==at::prim::NumToTensor) {
+            input_type = node->input(0)->type();
+        }
+
         if (input_type->kind() == c10::TypeKind::TensorType) {
             return TNN_OK;
         }
@@ -2650,12 +2841,12 @@ public:
             layer_info->type_str                  = "Concat";
             layer_info->name                      = node->output(0)->debugName();
 
-            const auto inputs      = node->inputs();
+            const auto inputs      = GetEffectiveInputValues(node);
             const auto tensor_list = inputs[0];
             for (const auto input : inputs) {
                 layer_info->inputs.push_back(input->debugName());
             }
-            layer_info->outputs.push_back(node->outputs()[0]->debugName());
+            layer_info->outputs.push_back(node->output(0)->debugName());
 
             auto layer_param  = std::make_shared<ConcatLayerParam>();
             layer_param->axis = 0;
@@ -2685,11 +2876,11 @@ class ListUnpackTorchConverter : public TorchOpConverter {
 public:
     bool IsSupported(const torch::jit::Node *node) {
 
-        torch::jit::Node* in0_node = node->input(0)->node();
+        torch::jit::Node* in0_node = GetEffectiveInputValue(node, 0)->node();
         if (in0_node->kind() == c10::aten::split) {
             return true;
         } else if (in0_node->kind() == c10::aten::size) {
-            if (in0_node->inputs().size() == 1) {
+            if (GetEffectiveInputValues(in0_node).size() == 1) {
                 // aten::size(%in_tensor), return a list representing shape of the Tensor.
                 return true;
             }
@@ -2698,9 +2889,9 @@ public:
     }
 
     Status Convert(const torch::jit::Node *node, NetStructure *net_structure, NetResource *net_resource) {
-        torch::jit::Node* in0_node = node->input(0)->node();
+        torch::jit::Node* in0_node = GetEffectiveInputValue(node, 0)->node();
 
-        if (in0_node->kind() == c10::aten::size && in0_node->inputs().size() == 1) {
+        if (in0_node->kind() == c10::aten::size && GetEffectiveInputValues(in0_node).size() == 1) {
             const auto outputs = node->outputs();
             const int num_dims = outputs.size();
             
@@ -2710,7 +2901,7 @@ public:
                 layer_info->type_str             = "Gather";
                 layer_info->name                 = outputs[dim]->debugName();
 
-                layer_info->inputs.push_back(node->input(0)->debugName());
+                layer_info->inputs.push_back(GetEffectiveInputValue(node, 0)->debugName());
                 layer_info->outputs.push_back(outputs[dim]->debugName());
 
                 auto layer_param                 = std::make_shared<GatherLayerParam>();
@@ -2744,10 +2935,10 @@ public:
         layer_info->type_str                  = "Squeeze";
         layer_info->name                      = node->output(0)->debugName();
 
-        const auto &inputs = node->inputs();
+        const auto &inputs = GetEffectiveInputValues(node);
 
-        layer_info->inputs.push_back(node->inputs()[0]->debugName());
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->inputs.push_back(inputs[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         auto layer_param = std::make_shared<SqueezeLayerParam>();
 
@@ -2774,28 +2965,30 @@ public:
         layer_info->type_str                  = "Where";
         layer_info->name                      = node->output(0)->debugName();
 
+        const auto &inputs = GetEffectiveInputValues(node);
+
         if (node->kind()==at::aten::masked_fill) {
-            auto value_dtype = node->input(2)->type()->kind();
-            if (!toIValue(node->input(2))) {
-                layer_info->inputs.push_back(node->input(2)->debugName());  // value
-                layer_info->inputs.push_back(node->input(0)->debugName());  // self
-                layer_info->inputs.push_back(node->input(1)->debugName());  // mask
+            auto value_dtype = inputs[2]->type()->kind();
+            if (!toIValue(inputs[2])) {
+                layer_info->inputs.push_back(inputs[2]->debugName());  // value
+                layer_info->inputs.push_back(inputs[0]->debugName());  // self
+                layer_info->inputs.push_back(inputs[1]->debugName());  // mask
             } else {
-                layer_info->inputs.push_back(node->input(0)->debugName());  // self
-                layer_info->inputs.push_back(node->input(1)->debugName());  // mask
+                layer_info->inputs.push_back(inputs[0]->debugName());  // self
+                layer_info->inputs.push_back(inputs[1]->debugName());  // mask
                 auto layer_res = std::make_shared<WhereLayerResource>();
                 //if (value_dtype==c10::TypeKind::IntType) {
-                if (toIValue(node->input(2))->isInt()) {
-                    int value = static_cast<int>(getValue<int64_t>(node->input(2)));
+                if (toIValue(inputs[2])->isInt()) {
+                    int value = static_cast<int>(getValue<int64_t>(inputs[2]));
                     RawBuffer value_buf = RawBuffer(4, reinterpret_cast<char *>(&value), {1});
                     value_buf.SetDataType(DATA_TYPE_INT32);
                     layer_res->x = value_buf;
-                } else if (toIValue(node->input(2))->isDouble()) {
-                    float value = getValue<float>(node->input(2));
+                } else if (toIValue(inputs[2])->isDouble()) {
+                    float value = getValue<float>(inputs[2]);
                     RawBuffer value_buf = RawBuffer(4, reinterpret_cast<char *>(&value), {1});
                     layer_res->x = value_buf;
                 } else { // RARE is Tensor, like: Float(requires_grad=0, device=cpu) = prim::Constant[value={-100000}]()
-                    float value = static_cast<float*>(toIValue(node->input(2))->unsafeToTensorImpl()->data())[0];
+                    float value = static_cast<float*>(toIValue(inputs[2])->unsafeToTensorImpl()->data())[0];
                     value = std::max(-65503.0f, std::min(65503.0f, value)); // FP16 min, max.
                     RawBuffer value_buf = RawBuffer(4, reinterpret_cast<char *>(&value), {1});
                     layer_res->x = value_buf;
@@ -2803,11 +2996,11 @@ public:
                 net_resource->resource_map[layer_info->name] = layer_res;
             }
         } else { // node->kind()==aten::where
-            layer_info->inputs.push_back(node->input(1)->debugName());  // self
-            layer_info->inputs.push_back(node->input(2)->debugName());  // other
-            layer_info->inputs.push_back(node->input(0)->debugName());  // condition
+            layer_info->inputs.push_back(inputs[1]->debugName());  // self
+            layer_info->inputs.push_back(inputs[2]->debugName());  // other
+            layer_info->inputs.push_back(inputs[0]->debugName());  // condition
         }
-        layer_info->outputs.push_back(node->outputs()[0]->debugName());
+        layer_info->outputs.push_back(node->output(0)->debugName());
 
         layer_info->param = std::make_shared<LayerParam>();
 
@@ -2828,7 +3021,7 @@ public:
 // class QuantConv2DTorchConverter : public TorchOpConverter {
 // public:
 //     Status Convert(const torch::jit::Node *node, LayerInfo *layer_info, LayerResource **layer_resouce) {
-//         const auto& inputs = node->inputs();
+//         const auto& inputs = GetEffectiveInputValues(node);
 //         auto weight = toIValue(inputs[1]).value();
 //         std::cout << weight.isTuple() << std::endl;
 //         std::cout << weight.isTensor() << std::endl;
@@ -2872,6 +3065,7 @@ REGISTER_TORCH_OP_CONVERTER(Clone, aten, clone)
 REGISTER_TORCH_OP_CONVERTER(Concat, aten, cat)
 REGISTER_TORCH_OP_CONVERTER(ConstantOfShapeZeros, aten, new_zeros)
 REGISTER_TORCH_OP_CONVERTER(ConstantOfShapeOnes, aten, new_ones)
+REGISTER_TORCH_OP_CONVERTER(Contiguous, aten, contiguous)
 REGISTER_TORCH_OP_CONVERTER(Conv1D, aten, conv1d)
 REGISTER_TORCH_OP_CONVERTER(Conv2D, aten, conv2d)
 REGISTER_TORCH_OP_CONVERTER(Conv3D, aten, conv3d)
@@ -2901,6 +3095,7 @@ REGISTER_TORCH_OP_CONVERTER(Expand, aten, expand)
 REGISTER_TORCH_OP_CONVERTER(Expandas, aten, expand_as)
 REGISTER_TORCH_OP_CONVERTER(Flatten, aten, flatten)
 REGISTER_TORCH_OP_CONVERTER(Gather, aten, embedding)
+REGISTER_TORCH_OP_CONVERTER(Gather, aten, index)
 REGISTER_TORCH_OP_CONVERTER(Gather, aten, select)
 REGISTER_TORCH_OP_CONVERTER(GetItem, aten, __getitem__)
 REGISTER_TORCH_OP_CONVERTER(Glu, aten, glu)
@@ -2931,6 +3126,7 @@ REGISTER_TORCH_OP_CONVERTER(Power, aten, pow)
 REGISTER_TORCH_OP_CONVERTER(Range, aten, arange)
 REGISTER_TORCH_OP_CONVERTER(Reshape, aten, reshape)
 REGISTER_TORCH_OP_CONVERTER(Reshape, aten, view)
+REGISTER_TORCH_OP_CONVERTER(Roll, aten, roll)
 REGISTER_TORCH_OP_CONVERTER(Size, aten, size)
 REGISTER_TORCH_OP_CONVERTER(Softmax, aten, softmax)
 REGISTER_TORCH_OP_CONVERTER(Squeeze, aten, squeeze)
@@ -2950,10 +3146,9 @@ REGISTER_TORCH_OP_CONVERTER(Reduce, aten, mean)
 
 REGISTER_TORCH_OP_CONVERTER(Device, prim, device)
 REGISTER_TORCH_OP_CONVERTER(Dtype, prim, dtype)
-REGISTER_TORCH_OP_CONVERTER(NumToTensor, prim, NumToTensor)
 REGISTER_TORCH_OP_CONVERTER(List, prim, ListConstruct)
 REGISTER_TORCH_OP_CONVERTER(ListUnpack, prim, ListUnpack)
-
+REGISTER_TORCH_OP_CONVERTER(NumToTensor, prim, NumToTensor)
 
 // REGISTER_TORCH_OP_CONVERTER(QuantConv2D, quantized, conv2d)
 

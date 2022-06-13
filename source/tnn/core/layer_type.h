@@ -235,6 +235,7 @@ enum LayerType {
     LAYER_FLATTENTORCH                                      = 344,
     LAYER_OR                                                = 345,
     LAYER_XOR                                               = 346,
+    LAYER_ROLL                                              = 347,
 
     LAYER_BLOB_SCALE                                        = 600,
 
