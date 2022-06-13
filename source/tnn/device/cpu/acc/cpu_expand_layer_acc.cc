@@ -42,10 +42,6 @@ Status CpuExpandLayerAcc::InferRuntimeOutputShape(const std::vector<Blob *> &inp
         // Because TRT Does not accept dynamic Expand.
         if (data_dims.size() == shape_data_count) {
             for (int i=0; i<shape_data_count; i++) {
-                if (expand_param->shape.size()==shape_dims.size() && expand_param->shape[i]==-1) {
-                    shape_dims[i] = -1;
-                    continue;
-				}
                 if (expand_param->shape.size()==shape_dims.size() && expand_param->shape[i]!=shape_dims[i] && data_dims[i]==shape_dims[i]) {
                     shape_dims[i] = -1;
                 }

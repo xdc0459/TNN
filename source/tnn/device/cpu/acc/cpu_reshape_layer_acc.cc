@@ -44,7 +44,9 @@ Status CpuReshapeLayerAcc::InferRuntimeOutputShape(const std::vector<Blob *> &in
         for (int i=0; i<dim_count; i++) {
             dims.push_back(dim_data[i]);
         }
-        layer_param->shape = dims;
+        if (layer_param->shape.empty()) {
+            layer_param->shape = dims;
+        }
         layer_param->num_axes = dim_count;
         auto output_dims = DimsFunctionUtils::Reshape(input_dims, dims, layer_param->axis, dim_count, &status);
         RETURN_ON_NEQ(status, TNN_OK);
