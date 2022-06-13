@@ -151,7 +151,7 @@ Status TensorRTNetwork_::Init(NetworkConfig &net_config, ModelConfig &model_conf
 
     std::string cache_file_name = GetCacheFileName(params_md5, inputs, outputs, min_inputs_shape,
         net_config.device_id, this->int8_mode, config_.precision == PRECISION_LOW,
-        enable_const_folder);
+        enable_const_folder, net_config.cache_path);
 
     if (cache_buf.size() == 0) {
         std::unique_ptr<ExclFile> file_lock(new ExclFile(cache_file_name));
@@ -773,7 +773,7 @@ bool TensorRTNetwork_::IsBlobUsed(Blob* blob) {
 
 std::string TensorRTNetwork_::GetCacheFileName(std::vector<std::string> params_md5, BlobMap input_map,
         BlobMap output_map, const InputShapesMap &min_inputs_shape, int device_id, bool int8_mode,
-        bool use_fp16, bool enable_const_folder) {
+        bool use_fp16, bool enable_const_folder, std::string cache_path) {
     std::string md5_source = "";
 
     for (auto iter : params_md5) {
@@ -814,7 +814,12 @@ std::string TensorRTNetwork_::GetCacheFileName(std::vector<std::string> params_m
         + TENSORRT_SERIALIZE_VERSION + "-" + GetGpuType(device_id)
         + "-" + GetTrtVersion() + GetCudaVersion()
         + "-" + const_folder + ".cache";
-    return cache_file_name;
+
+    if(cache_path.empty() || cache_path.compare(CACHE_MEMORY_TAG) == 0) {
+        return cache_file_name;
+    } else {
+        return cache_path + "/" + cache_file_name;
+    }
 }
 
 
