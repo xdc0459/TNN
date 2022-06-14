@@ -77,7 +77,7 @@ void NetworkImplManager::RegisterNetworkImplFactory(NetworkType type, AbstractNe
 
 Status AbstractNetwork::InitWrapper(NetworkConfig &net_config, ModelConfig &model_config, AbstractModelInterpreter *interpreter,
         InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, bool enable_const_folder) {
-    Status ret = Init(net_config, model_config, interpreter, min_inputs_shape, max_inputs_shape);
+    Status ret = Init(net_config, model_config, interpreter, min_inputs_shape, max_inputs_shape, enable_const_folder);
     if(ret != TNN_OK) {
         return ret;
     }
