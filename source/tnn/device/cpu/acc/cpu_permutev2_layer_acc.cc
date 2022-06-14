@@ -54,44 +54,12 @@ Status CpuPermuteV2LayerAcc::Forward(const std::vector<Blob *> &inputs, const st
         input_step.push_back(CpuPermuteV2LayerAcc::count(input_dims, i + 1));
         output_step.push_back(CpuPermuteV2LayerAcc::count(output_dims, i + 1));
     }
-    //////////////////////////
-    if (inputs[0]->GetBlobDesc().name == "x.38") {
-    //if (1) {
-        std::cout << "[Cpu PermuteV2 Fwd] Fwd 0, in0.name = " << inputs[0]->GetBlobDesc().name;
-        std::cout << ", out.name = " << outputs[0]->GetBlobDesc().name << std::endl; 
-        std::cout << "[Cpu PermuteV2 Fwd], input.shape = [";
-        for (auto dim : inputs[0]->GetBlobDesc().dims)
-            std::cout << dim << ",";
-        std::cout << "], out.shape = [";
-        for (auto dim : outputs[0]->GetBlobDesc().dims)
-            std::cout << dim << ",";
-        std::cout << "], param.orders = [ ";
-        for (auto dim : param->orders)
-            std::cout << dim << ",";
-        std::cout << "], input_step = [ ";
-        for (auto dim : input_step)
-            std::cout << dim << ",";
-        std::cout << "], output_step = [ ";
-        for (auto dim : output_step)
-            std::cout << dim << ",";
-        std::cout << "]" << std::endl;
-    }
-    //////////////////////////
 
     if (data_type == DATA_TYPE_INT32 || data_type == DATA_TYPE_FLOAT) {
         // 32-bit data types.
         float *input_data  = static_cast<float *>(input_blob->GetHandle().base);
         float *output_data = static_cast<float *>(output_blob->GetHandle().base);
         NaivePermute<float>(output_count, output_dims, input_data, param->orders, input_step, output_step, num_dims, output_data);
-        //////////////////////////
-        if (inputs[0]->GetBlobDesc().name == "x.38") {
-            std::cout << "[Cpu PermuteV2 Fwd] in0.name = " << inputs[0]->GetBlobDesc().name;
-            std::cout << ", out.name = " << outputs[0]->GetBlobDesc().name << std::endl; 
-            std::cout << "[Cpu PermuteV2 Fwd] input_data.ptr=" << input_data << ", output_data.ptr=" << output_data;
-            std::cout << ", in[0] = " << input_data[0] << ", in[1] = " << input_data[1];
-            std::cout << ", out[0] = " << output_data[0] << ", out[1] = " << output_data[1] << std::endl;
-        }
-        //////////////////////////
     } else if (data_type == DATA_TYPE_BFP16 || data_type == DATA_TYPE_HALF) {
         // 16-bit data types.
         fp16_t *input_data  = static_cast<fp16_t *>(input_blob->GetHandle().base);
