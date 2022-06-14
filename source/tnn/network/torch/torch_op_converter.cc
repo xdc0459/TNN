@@ -836,12 +836,12 @@ public:
                 layer_info->type_str = "not";
                 break;
             case at::aten::relu:
-//            case at::aten::relu_:
+            case at::aten::relu_:
                 layer_info->type     = LAYER_RELU;
                 layer_info->type_str = "Relu";
                 break;
             case at::aten::sigmoid:
-//            case at::aten::sigmoid_:
+            case at::aten::sigmoid_:
                 layer_info->type     = LAYER_SIGMOID;
                 layer_info->type_str = "Sigmoid";
                 break;
