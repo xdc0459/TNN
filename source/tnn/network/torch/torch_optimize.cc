@@ -95,13 +95,19 @@ namespace jit {
                 return false;
             }
             at::ListTypePtr list_type = node->output(0)->type()->cast<at::ListType>();
-            if (list_type && toIValue(node->input(1)).value().isList()) {
+            if (!list_type || !toIValue(node->input(1))) {
+                return false;
+            }
+            if (toIValue(node->input(1)).value().isList()) {
                 auto split_users = node->output(0)->uses();
                 for (int i=0; i<split_users.size(); i++) {
                     if (split_users[i].user->kind()==c10::prim::ListUnpack) {
                         return false;
                     }
                 }
+            } else {
+                // TODO: Only work for split with sections right now. split with split size not supported yet.
+                return false;
             }
             return true;
         };
