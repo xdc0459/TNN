@@ -20,7 +20,7 @@ void ConvertNodeToLayer(const torch::jit::Node *node, NetStructure *net_structur
 
 }
 
-c10::intrusive_ptr<runtime::TNNEngine> ConvertBlockToInstance(partitioning::SegmentedBlock &block, NetworkConfig &config) {
+c10::intrusive_ptr<runtime::TNNEngine> ConvertBlockToInstance(partitioning::SegmentedBlock &block, NetworkConfig &config, Status& status) {
     auto ctx = std::make_shared<runtime::TorchConvertCtx>();
 
     ModelConfig model_config;
@@ -104,8 +104,10 @@ c10::intrusive_ptr<runtime::TNNEngine> ConvertBlockToInstance(partitioning::Segm
         // const std::string model_path = root + model_name + ".tnnmodel";
         // TNN_NS::ModelPacker model_packer(net_structure, net_resource);
         // Status status = model_packer.Pack(proto_path, model_path);
-        instance_ptr->instance_->Init(ctx->get_interpreter(), min_inputs_shape_map, max_inputs_shape_map);
-        instance_ptr->is_init_ = true;
+        status = instance_ptr->instance_->Init(ctx->get_interpreter(), min_inputs_shape_map, max_inputs_shape_map);
+        if(status == TNN_OK) {
+            instance_ptr->is_init_ = true;
+        }
     }
 
     return instance_ptr;

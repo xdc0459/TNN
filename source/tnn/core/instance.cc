@@ -84,7 +84,7 @@ Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, Inp
         return Status(TNNERR_NET_ERR, "network_ is nil, network_type may not support");
     }
     if (net_config_.device_type == DEVICE_CUDA) {
-        auto ret = network_->Init(net_config_, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, false);
+        auto ret = network_->InitWrapper(net_config_, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, false);
         if (ret == TNN_OK) {
             return ret;
         }
@@ -99,16 +99,16 @@ Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, Inp
         auto const_folder = std::make_shared<ConstFolder>();
         auto folder_net_config = net_config_;
         folder_net_config.share_memory_mode = SHARE_MEMORY_MODE_DEFAULT;
-        auto status = const_folder->Init(folder_net_config, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape);
+        auto status = const_folder->InitWrapper(folder_net_config, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape);
         RETURN_ON_NEQ(status, TNN_OK);
 
         if (min_inputs_shape.size() != 0) {
-            status = const_folder->Reshape(min_inputs_shape);
+            status = const_folder->ReshapeWrapper(min_inputs_shape);
             RETURN_ON_NEQ(status, TNN_OK);
             auto min_blob_shapes_map = default_interpreter->GetNetResource()->blob_shapes_map;
                 
             //Note output shape may not change after reshape for const folder, but will do change after forward because shape may be determined at rumtime
-            status = const_folder->Reshape(max_inputs_shape);
+            status = const_folder->ReshapeWrapper(max_inputs_shape);
             RETURN_ON_NEQ(status, TNN_OK);
                 
             default_interpreter->GetNetResource()->min_blob_shapes_map = min_blob_shapes_map;
@@ -121,7 +121,7 @@ Status Instance::Init(std::shared_ptr<AbstractModelInterpreter> interpreter, Inp
     }
 
     network_ = NetworkImplManager::GetNetworkImpl(network_type);
-    auto ret = network_->Init(net_config_, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, true);
+    auto ret = network_->InitWrapper(net_config_, model_config_, interpreter_.get(), min_inputs_shape, max_inputs_shape, true);
     RETURN_ON_NEQ(ret, TNN_OK);
 
     return TNN_OK;
@@ -144,10 +144,10 @@ Status Instance::Reshape(const InputShapesMap &inputs) {
     Status status = TNN_OK;
     if (const_folder_) {
         auto folder = dynamic_cast<ConstFolder*>(const_folder_.get());
-        status = folder->Reshape(inputs);
+        status = folder->ReshapeWrapper(inputs);
         RETURN_ON_NEQ(status, TNN_OK);
     }
-    status = network_->Reshape(inputs);
+    status = network_->ReshapeWrapper(inputs);
     return status;
 }
 

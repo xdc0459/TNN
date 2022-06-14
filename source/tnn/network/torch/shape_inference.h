@@ -24,7 +24,7 @@
 namespace TNN_NS {
 namespace partitioning {
 
-void runShapeInfer(torch::jit::Module& mod, std::vector<SegmentedBlock>& segmented_blocks,
+Status runShapeInfer(torch::jit::Module& mod, std::vector<SegmentedBlock>& segmented_blocks,
                    InputShapesMap& input_shape, InputDataTypeMap &input_type, NetworkConfig& config,
                    std::vector<BlobDesc>& subgraph_input_info);
 

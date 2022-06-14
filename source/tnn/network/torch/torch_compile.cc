@@ -21,6 +21,7 @@
 #include "tnn/network/torch/jit_util.h"
 #include "tnn/network/torch/partitioning.h"
 #include "tnn/network/torch/torch_convert.h"
+#include "tnn/network/torch/torch_macro.h"
 #include "tnn/network/torch/torch_optimize.h"
 
 #include "tnn/utils/blob_dump_utils.h"
@@ -142,6 +143,7 @@ void RegisterNodeToOutput(std::shared_ptr<torch::jit::Module> &mod, const std::v
 torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_input_shape,
                                 InputShapesMap &max_input_shape, InputDataTypeMap &input_type,
                                 NetworkConfig &config, std::string forward_func_name) {
+    Status status = TNN_OK;
     if (config.precision == PRECISION_LOW ) {
         mod.to(torch::kHalf);
     }
@@ -158,27 +160,28 @@ torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_inp
     //     std::cout << input->debugName() << " | " << input->type()->repr_str() << std::endl;
     // }
 
-    try {
-        auto seg_blocks = partitioning::Partition(mod, g, config);
+    auto seg_blocks = partitioning::Partition(mod, g, config);
 
+    try {
         // run shape infer and combine to blocks
         if (min_input_shape.size() && max_input_shape.size() && min_input_shape.size() == max_input_shape.size()) {
-	    //fix clone memory leak
-	    std::stringstream save_stream(std::ios_base::binary | std::ios_base::in | std::ios_base::out);
-	    mod.save(save_stream);
-	    save_stream.seekg(0);
-	    c10::Device device(c10::kCPU);
+	        //fix clone memory leak
+	        std::stringstream save_stream(std::ios_base::binary | std::ios_base::in | std::ios_base::out);
+	        mod.save(save_stream);
+	        save_stream.seekg(0);
+	        c10::Device device(c10::kCPU);
             ConvertToTorchDevice(device, config.device_type, config.device_id);
-	    auto shape_mod = torch::jit::freeze(torch::jit::load(save_stream, device));
+	        auto shape_mod = torch::jit::freeze(torch::jit::load(save_stream, device));
             auto shape_seg = partitioning::Partition(shape_mod, shape_mod.get_method(forward_func_name).graph(), config);
             std::vector<BlobDesc> subgraph_min_input_info;
             std::vector<BlobDesc> subgraph_max_input_info;
             //// input type & shape will be used for random input generation, then subgraph input info can be infered out
             // InputDataTypeMap input_type;
 
-            partitioning::runShapeInfer(shape_mod, shape_seg, min_input_shape, input_type, config, subgraph_min_input_info);
-            partitioning::runShapeInfer(shape_mod, shape_seg, max_input_shape, input_type, config, subgraph_max_input_info);
-	    
+            status = partitioning::runShapeInfer(shape_mod, shape_seg, min_input_shape, input_type, config, subgraph_min_input_info);
+            TORCH_CHECK_THROW_ERROR(status, "partitioning::runShapeInfer Error \n");
+	    status = partitioning::runShapeInfer(shape_mod, shape_seg, max_input_shape, input_type, config, subgraph_max_input_info);
+            TORCH_CHECK_THROW_ERROR(status, "partitioning::runShapeInfer Error \n");
             int input_idx = 0;
             for (auto &block : seg_blocks) {
                 std::vector<DimsVector> min_shape;
@@ -214,72 +217,73 @@ torch::jit::Module CompileTorch(torch::jit::Module &mod, InputShapesMap &min_inp
             return;
         }
     #endif
-
-        int block_idx = 0;
-        int block_stop_idx = INT_MAX;
-        for (auto &block : seg_blocks) {
-            try {
-                std::ostringstream tnn_engine_id;
-                tnn_engine_id << reinterpret_cast<const int *>(&block);
-                auto engine_ptr = conversion::ConvertBlockToInstance(block, config);
-                auto temp_g     = std::make_shared<torch::jit::Graph>();
-                AddEngineToGraph(mod, temp_g, engine_ptr, tnn_engine_id.str(), true);
-                // std::cout << block.g()->toString() << std::endl;
-                // std::cout << temp_g->toString() << std::endl;
-
-                std::vector<torch::jit::Value *> block_real_inputs;
-                block_real_inputs.push_back(g->inputs()[0]);
-                for (auto input : block.raw_inputs()) {
-                    if (old_to_new_g.count(input) == 0) {
-                        block_real_inputs.push_back(input);
-                    } else {
-                        block_real_inputs.push_back(old_to_new_g[input]);
-                    }
-                }
-
-                WithInsertPoint insert_point(block.raw_outputs()[0]->node());
-                auto new_outputs = torch::jit::insertGraph(*g, *temp_g, block_real_inputs);
-
-                int out_idx = 0;
-                for (auto output : block.raw_outputs()) {
-                    output->replaceAllUsesWith(new_outputs[out_idx]);
-                    old_to_new_g[output] = new_outputs[out_idx++];
-                }
-
-                block.update_graph(temp_g);
-            } catch (std::exception& e) {
-                block_stop_idx = block_idx;
-                // std::cout << "exception block " << block_stop_idx << std::endl;
-                std::cout << e.what() << std::endl;
-                break;
-            }
-            block_idx++;
-        }
-
-        block_idx = 0;
-        for (auto &block : seg_blocks) {
-            if (block_idx < block_stop_idx) {
-                for (auto n : block.raw_nodes()) {
-                    n->removeAllInputs();
-                }
-                for (auto n : block.raw_nodes()) {
-                    // node may be used in different block, destory in the last used block
-                    if (std::find_if(n->outputs().begin(), n->outputs().end(), [](auto output) {
-                            return output->uses().size() > 0;
-                        }) != n->outputs().end()) {
-                        continue;
-                    }
-
-                    n->destroy();
-                }
-            } else {
-                break;
-            }
-            block_idx++;
-        }
     } catch (std::exception &e) {
         std::cout << "compile exception:" << e.what() << std::endl;
         return mod;
+    }
+
+    int block_idx      = 0;
+    int block_stop_idx = INT_MAX;
+    for (auto &block : seg_blocks) {
+        try {
+            std::ostringstream tnn_engine_id;
+            tnn_engine_id << reinterpret_cast<const int *>(&block);
+
+            auto engine_ptr = conversion::ConvertBlockToInstance(block, config, status);
+            TORCH_CHECK_THROW_ERROR(status, "conversion::ConvertBlockToInstance Error \n");
+            auto temp_g = std::make_shared<torch::jit::Graph>();
+            AddEngineToGraph(mod, temp_g, engine_ptr, tnn_engine_id.str(), true);
+            // std::cout << block.g()->toString() << std::endl;
+            // std::cout << temp_g->toString() << std::endl;
+
+            std::vector<torch::jit::Value *> block_real_inputs;
+            block_real_inputs.push_back(g->inputs()[0]);
+            for (auto input : block.raw_inputs()) {
+                if (old_to_new_g.count(input) == 0) {
+                    block_real_inputs.push_back(input);
+                } else {
+                    block_real_inputs.push_back(old_to_new_g[input]);
+                }
+            }
+
+            WithInsertPoint insert_point(block.raw_outputs()[0]->node());
+            auto new_outputs = torch::jit::insertGraph(*g, *temp_g, block_real_inputs);
+
+            int out_idx = 0;
+            for (auto output : block.raw_outputs()) {
+                output->replaceAllUsesWith(new_outputs[out_idx]);
+                old_to_new_g[output] = new_outputs[out_idx++];
+            }
+
+            block.update_graph(temp_g);
+        } catch (std::exception &e) {
+            block_stop_idx = block_idx;
+            // std::cout << "exception block " << block_stop_idx << std::endl;
+            std::cout << e.what() << std::endl;
+            break;
+        }
+        block_idx++;
+    }
+
+    block_idx = 0;
+    for (auto &block : seg_blocks) {
+        if (block_idx < block_stop_idx) {
+            for (auto n : block.raw_nodes()) {
+                n->removeAllInputs();
+            }
+            for (auto n : block.raw_nodes()) {
+                // node may be used in different block, destory in the last used block
+                if (std::find_if(n->outputs().begin(), n->outputs().end(),
+                                 [](auto output) { return output->uses().size() > 0; }) != n->outputs().end()) {
+                    continue;
+                }
+
+                n->destroy();
+            }
+        } else {
+            break;
+        }
+        block_idx++;
     }
 
     // remove constant nodes which has been convert to tnn netresource
