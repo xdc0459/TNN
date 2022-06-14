@@ -66,7 +66,7 @@ TNNTorchNetwork::~TNNTorchNetwork() {
 
 Status TNNTorchNetwork::Init(NetworkConfig &net_config, ModelConfig &model_config,
                              AbstractModelInterpreter *interpreter, InputShapesMap min_inputs_shape,
-                             InputShapesMap max_inputs_shape, bool enable_const_folder) {
+                             InputShapesMap max_inputs_shape, InputDataTypeMap inputs_data_type, bool enable_const_folder) {
     config_    = net_config;
     Status ret = TNN_OK;
 
@@ -94,6 +94,7 @@ Status TNNTorchNetwork::Init(NetworkConfig &net_config, ModelConfig &model_confi
 
     min_inputs_shape_ = min_inputs_shape;
     max_inputs_shape_ = max_inputs_shape;
+    inputs_data_type_ = inputs_data_type;
     // if share net resource with another net, create io binding later when sharing
     if (net_config.share_memory_mode != SHARE_MEMORY_MODE_SHARE_NET_RESOURCE) {
         if (model_config.model_type == MODEL_TYPE_TORCHSCRIPT) {
@@ -105,9 +106,8 @@ Status TNNTorchNetwork::Init(NetworkConfig &net_config, ModelConfig &model_confi
             c10::Device device(c10::kCPU);
             RETURN_ON_NEQ(ConvertToTorchDevice(device, config_.device_type, config_.device_id), TNN_OK);
             auto mod = torch::jit::load(model_stream, device);
-            InputDataTypeMap input_type;
             try {
-                module_ = CompileTorch(mod, min_inputs_shape_, max_inputs_shape_, input_type, config_, forward_func_name_);
+                module_ = CompileTorch(mod, min_inputs_shape_, max_inputs_shape_, inputs_data_type_, config_, forward_func_name_);
             } catch (std::exception& e) {
                 LOGE("TNNTorchNetwork Init Compile exception: %s \n", e.what());
                 return Status(TNNERR_NET_ERR, "TNNTorchNetwork Init Compile Error \n");
@@ -136,7 +136,7 @@ Status TNNTorchNetwork::Init(NetworkConfig &net_config, ModelConfig &model_confi
         }
         #endif
 
-        RETURN_ON_FAIL(CreateIOBinding(min_inputs_shape, max_inputs_shape));
+        RETURN_ON_FAIL(CreateIOBinding(min_inputs_shape, max_inputs_shape, inputs_data_type));
 
         // module_.save("opt.ts");
         // auto tmp_mod = torch::jit::load("opt.ts");
@@ -155,12 +155,12 @@ Status TNNTorchNetwork::ShareNetResource(AbstractNetwork* network) {
     module_ = network_target->GetModule();
     graph_ = network_target->GetGraph();
 
-    RETURN_ON_FAIL(CreateIOBinding(min_inputs_shape_, max_inputs_shape_));
+    RETURN_ON_FAIL(CreateIOBinding(min_inputs_shape_, max_inputs_shape_, inputs_data_type_));
     init_done_ = true;
     return TNN_OK;
 }
 
-Status TNNTorchNetwork::CreateIOBinding(InputShapesMap  min_shape, InputShapesMap max_shape) {
+Status TNNTorchNetwork::CreateIOBinding(InputShapesMap min_shape, InputShapesMap max_shape, InputDataTypeMap inputs_data_type) {
 
     std::set<c10::TypeKind> supported_kinds = {
         c10::TypeKind::TensorType,
@@ -182,6 +182,7 @@ Status TNNTorchNetwork::CreateIOBinding(InputShapesMap  min_shape, InputShapesMa
 
     NetStructure fake_netstructure;
     fake_netstructure.inputs_shape_map = max_shape;
+    fake_netstructure.input_data_type_map = inputs_data_type;
 
     // regardless of those blobs only show once
     for(auto p : min_shape) fake_netstructure.blobs.insert(p.first);

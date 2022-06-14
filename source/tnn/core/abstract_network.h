@@ -36,13 +36,13 @@ public:
 
     // @brief init network wrapper, record min and max input shapes
     Status InitWrapper(NetworkConfig &net_config, ModelConfig &model_config, AbstractModelInterpreter *interpreter,
-        InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, bool enable_const_folder=true);
+        InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, InputDataTypeMap inputs_data_type, bool enable_const_folder=true);
 
     // @brief init network with net cfg and net res.
     // @param net_cfg
     // @param net_res
     virtual Status Init(NetworkConfig &net_config, ModelConfig &model_config, AbstractModelInterpreter *interpreter,
-        InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, bool enable_const_folder=true) = 0;
+        InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, InputDataTypeMap inputs_data_type, bool enable_const_folder=true) = 0;
 
     // @brief deinit release init create resource
     virtual Status DeInit() = 0;

@@ -14,6 +14,7 @@
 
 #include "tnn/network/tensorrt/layer_builder/tensorrt_layer_builder.h"
 #include "tnn/network/tensorrt/utils.h"
+#include <numeric>
 
 namespace TNN_NS {
 
@@ -44,7 +45,6 @@ ILayer* PermuteTRTLayerBuilder::AddToNetwork(INetworkDefinition* network) {
 }
 
 REGISTER_TENSORRT_LAYER_BUILDER(Permute, LAYER_PERMUTE);
-REGISTER_TENSORRT_LAYER_BUILDER(Permute, LAYER_PERMUTEV2);
 
 }  //  namespace TNN_NS
 

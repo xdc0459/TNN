@@ -42,8 +42,9 @@ public:
     // @param net_resource network resource info
     // @param inputs_shape_map modify input shape, if empty, it will use the
     // shape in proto
+	// @param inputs_data_type modify input data type, by default float.
     virtual Status Init(NetworkConfig &net_config, ModelConfig &model_config, AbstractModelInterpreter *interpreter,
-        InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, bool enable_const_folder=true);
+        InputShapesMap min_inputs_shape, InputShapesMap max_inputs_shape, InputDataTypeMap inputs_data_type, bool enable_const_folder=true);
 
     // @brief reshape with input shape info
     // @inputs input shape info

@@ -157,10 +157,18 @@ static RawBuffer getValue(const torch::jit::Value* value) {
             auto float_vec  = std::vector<float>(vec.begin(), vec.end());
             return RawBuffer(bytes_size, reinterpret_cast<char*>(float_vec.data()), dims);
         } else if (torch_type == at::ScalarType::Long) {
+            ///////////////
+            //std::cout << "[Torch Op CVTer], getValue, Tensor::Long" << std::endl;
+            ///////////////
             auto vec        = getValue<int64_t>(value, dims);
-            auto bytes_size = size * DataTypeUtils::GetBytesSize(DATA_TYPE_FLOAT);
-            auto float_vec  = std::vector<float>(vec.begin(), vec.end());
-            return RawBuffer(bytes_size, reinterpret_cast<char*>(float_vec.data()), dims);
+            //auto bytes_size = size * DataTypeUtils::GetBytesSize(DATA_TYPE_FLOAT);
+            //auto float_vec  = std::vector<float>(vec.begin(), vec.end());
+            //return RawBuffer(bytes_size, reinterpret_cast<char*>(float_vec.data()), dims);
+            auto bytes_size = size * DataTypeUtils::GetBytesSize(DATA_TYPE_INT32);
+            auto int32_vec  = std::vector<int>(vec.begin(), vec.end());
+            auto buffer     = RawBuffer(bytes_size, reinterpret_cast<char*>(int32_vec.data()), dims);
+            buffer.SetDataType(DATA_TYPE_INT32);
+            return buffer;
         } else {
             LOGE("getValue:wrong scalar type\n");
         }
@@ -168,6 +176,58 @@ static RawBuffer getValue(const torch::jit::Value* value) {
 
     return RawBuffer();
 }
+
+
+// Get Real effective Input Values of node.
+// For Example,
+// %68 : int = aten::size(%input_ids.1, %8)
+// %seq_length.1 : Tensor = prim::NumToTensor(%68)
+// %70 : Tensor = aten::add(%seq_length.1, %36, %8)
+// In this paragraph, effective input values of node aten::add
+// should be %68, not %seq_length.1.
+static torch::jit::Value* GetEffectiveInputValue(const torch::jit::Node* node, int idx) {
+    torch::jit::Value* ret;
+    auto input = node->input(idx);
+    auto input_kind = input->node()->kind();
+    if (input_kind == at::prim::NumToTensor || input_kind == at::aten::Int ||
+        input_kind == at::aten::contiguous) {
+        input = GetEffectiveInputValue(input->node(), 0);
+    }
+    return input;
+}
+
+static std::vector<torch::jit::Value*> GetEffectiveInputValues(const torch::jit::Node* node) {
+    std::vector<torch::jit::Value*> ret;
+    for (int i=0; i<node->inputs().size(); i++) {
+        ret.push_back(GetEffectiveInputValue(node, i));
+    }
+    return ret;
+}
+
+// Get Real effective Output Values of node.
+// The function is used when we need to judge users of node output.
+// e.g    node->output->uses()[0]
+static torch::jit::Value* GetEffectiveOutputValue(const torch::jit::Node* node, int idx) {
+    torch::jit::Value* ret;
+    auto output = node->output(idx);
+    auto output_kind = output->node()->kind();
+    if (output_kind == at::prim::NumToTensor || output_kind == at::aten::Int ||
+        output_kind == at::aten::contiguous) {
+        output = GetEffectiveOutputValue(output->node(), 0);
+    }
+    return output;
+}
+
+static std::vector<torch::jit::Value*> GetEffectiveOutputValues(const torch::jit::Node* node) {
+    std::vector<torch::jit::Value*> ret;
+    for (int i=0; i<node->outputs().size(); i++) {
+        ret.push_back(GetEffectiveOutputValue(node, i));
+    }
+    return ret;
+}
+
+
+
 
 class TorchOpConverter {
 public:

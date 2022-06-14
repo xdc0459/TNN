@@ -53,8 +53,11 @@ Status genRandomInputs(std::shared_ptr<torch::jit::Graph> graph, InputShapesMap 
     for (auto &input : input_shape) {
         // create blob from input_shape
         BlobDesc blob_desc;
-        blob_desc.data_type =
-            (config.precision == PRECISION_LOW && config.device_type == DEVICE_CUDA) ? DATA_TYPE_HALF : DATA_TYPE_FLOAT;
+        if (input_type.find(input.first) != input_type.end()) {
+            blob_desc.data_type = input_type[input.first];
+        } else {
+            blob_desc.data_type = (config.precision == PRECISION_LOW && config.device_type == DEVICE_CUDA) ? DATA_TYPE_HALF : DATA_TYPE_FLOAT;
+        }
         blob_desc.device_type = config.device_type;
         blob_desc.dims        = input.second;
         auto blob             = std::make_shared<Blob>(blob_desc, true);

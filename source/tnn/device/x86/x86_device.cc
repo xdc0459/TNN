@@ -54,6 +54,10 @@ Status X86Device::Allocate(void** handle, MatType mat_type, DimsVector dims) {
         desc.data_type   = DATA_TYPE_INT8;
         auto size_info   = Calculate(desc);
         return Allocate(handle, size_info);
+    } else if (mat_type == RESERVED_FP16_TEST) {
+        desc.data_type   = DATA_TYPE_HALF;
+        auto size_info   = Calculate(desc);
+        return Allocate(handle, size_info);
     } else if (mat_type == NC_INT32) {
         desc.data_type   = DATA_TYPE_INT32;
         auto size_info   = Calculate(desc);
@@ -70,7 +74,7 @@ Status X86Device::Allocate(void** handle, MatType mat_type, DimsVector dims) {
 
 Status X86Device::Allocate(void** handle, BlobMemorySizeInfo& size_info) {
     if (handle) {
-        *handle = malloc(GetBlobMemoryBytesSize(size_info));
+        *handle = calloc(GetBlobMemoryBytesSize(size_info), 1);
     }
     return TNN_OK;
 }

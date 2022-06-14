@@ -105,8 +105,11 @@ nvinfer1::DataType GatherTRTPluginLayerBuilder::getOutputDataType(int index, con
 // if not shape tensor, we use customized gather implementation
 ILayer* GatherTRTPluginLayerBuilder::AddToNetwork(INetworkDefinition* network) noexcept {
     // if shape tensor
+    // Use TRT built-in Gather instead of Custom Plugin for better performance by Myelin
+    // Caution: In TRT 8.2, 8.4, Myelin optimization of Gather OP may have BUGs for dynamic input
     if (GetInputITensors()[0]->getDimensions().nbDims == 0 ||
-        GetInputITensors()[0]->getDimensions().nbDims == 1) {
+        GetInputITensors()[0]->getDimensions().nbDims == 1 ||
+        GetInputITensors()[0]->getDimensions().nbDims == 2) {
 
         auto layer_param = dynamic_cast<GatherLayerParam*>(param_);
         if (layer_param == nullptr) {
@@ -147,8 +150,20 @@ ILayer* GatherTRTPluginLayerBuilder::AddToNetwork(INetworkDefinition* network) n
             LOGE("GatherTRTLayerBuilder can not find data or indices\n");
             return nullptr;
         }
-
-        return network->addGather(*data, *indices, axis);
+        
+        // TNN-Torch aten::embedding may have a strange BUG,
+        // runtime data type of indices may be types other than int32 although
+        // init time dtype is. An extra type cast must be added here to avoid such case.
+        if (GetInputITensors()[0]->getDimensions().nbDims == 2) {
+            ILayer* cast_layer = network->addIdentity(*indices);
+            cast_layer->setName((layer_name_+"_embedding_indices_to_int32").c_str());
+            cast_layer->setOutputType(0, nvinfer1::DataType::kINT32);
+            indices = cast_layer->getOutput(0);
+        }
+        auto gather_layer = network->addGather(*data, *indices, axis);
+        gather_layer->setName((layer_name_).c_str());
+        //gather_layer->setInputType(1, nvinfer1::DataType::kINT32);
+        return gather_layer;
     }
     return TensorRTPluginLayerBuilder::AddToNetwork(network);
 }
