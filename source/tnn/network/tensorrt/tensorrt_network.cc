@@ -301,7 +301,10 @@ Status TensorRTNetwork_::ReshapeLayers() {
         if (index < 0) continue;
         auto dims = blob_manager_->GetBlob(iter.first)->GetBlobDesc().dims;
         nvinfer1::Dims inputDims = ConvertToTRTDims(dims);
-        m_trt_context->setBindingDimensions(index, inputDims);
+        bool success = m_trt_context->setBindingDimensions(index, inputDims);
+	if(!success) {
+            return Status(TNNERR_PARAM_ERR, "Reshape failed\n");
+        }
         this->m_trt_bindings[index] = iter.second->GetHandle().base;
     }
 
@@ -320,18 +323,18 @@ Status TensorRTNetwork_::ReshapeLayers() {
         // Data is reload from const_map to blob in CudaLayerAcc::ReloadConstantBlobs
         m_trt_bindings[index] = blob->GetHandle().base;
 
-        bool ret;
+        bool success;
         auto foreign_tensor = dynamic_cast<ForeignBlob*>(blob)->GetForeignTensor();
         if (std::dynamic_pointer_cast<TensorRTTensor>(foreign_tensor)->IsShapeTensor()) {
             auto name = std::dynamic_pointer_cast<TensorRTTensor>(foreign_tensor)->GetShapeBlobName();
             auto dims = net_resource_->blob_shapes_map[name];
-            ret = m_trt_context->setInputShapeBinding(index, dims.data());
+            success = m_trt_context->setInputShapeBinding(index, dims.data());
         } else {
             nvinfer1::Dims inputDims = ConvertToTRTDims(buf->GetBufferDims());
-            ret = m_trt_context->setBindingDimensions(index, inputDims);
+            success = m_trt_context->setBindingDimensions(index, inputDims);
         }
 
-        if (!ret) {
+        if (!success) {
             return Status(TNNERR_PARAM_ERR, "Reshape failed\n");
         }
     }

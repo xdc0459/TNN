@@ -15,21 +15,25 @@
 #include "tnn/core/blob.h"
 #include "tnn/network/torch/jit_util.h"
 #include "tnn/network/torch/torch_convert.h"
+#include "tnn/network/torch/torch_macro.h"
 #include "tnn/network/torch/torch_tnn_runtime.h"
 #include "tnn/network/torch/torch_utils.h"
-#include "torch/csrc/jit/runtime/custom_operator.h"
+#include "tnn/interpreter/tnn/model_interpreter.h"
 #include "tnn/interpreter/tnn/model_packer.h"
-#include <cuda_runtime.h>
+#include "tnn/utils/blob_dump_utils.h"
 
 #include "c10/cuda/CUDAStream.h"
-#include "tnn/utils/blob_dump_utils.h"
-#include "tnn/interpreter/tnn/model_interpreter.h"
+#include "torch/csrc/jit/runtime/custom_operator.h"
+
+#include <cuda_runtime.h>
+#include <stdexcept>
 
 namespace TNN_NS {
 namespace runtime {
 
 std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
                                         c10::intrusive_ptr<TNNEngine> compiled_engine) {
+    Status ret = TNN_OK;
     auto scalar_type = inputs[0].scalar_type();
     auto input_names  = compiled_engine->input_names;
     auto output_names = compiled_engine->output_names;
@@ -40,7 +44,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     for (auto &input : inputs) {
         inputs_shape_map[input_names[input_idx]] = util::toDims(input.sizes());
         BlobDesc blob_desc;
-        GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
+        ret = GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
+        TORCH_CHECK_THROW_ERROR(ret, "GetBlobDescFromTensor ERROR \n");
         // binding input data type
         inputs_data_type_map[input_names[input_idx++]] = blob_desc.data_type;
     }
@@ -65,7 +70,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
 
         // ModelPacker package(interpreter->GetNetStructure(), interpreter->GetNetResource());
         // package.Pack("torch.tnnproto", "torch.tnnmodel");
-        compiled_engine->instance_->Init(compiled_engine->interpreter_, min_shape, max_shape);
+        ret = compiled_engine->instance_->Init(compiled_engine->interpreter_, min_shape, max_shape);
+        TORCH_CHECK_THROW_ERROR(ret, "compiled_engine init error \n");
         compiled_engine->is_init_ = true;
     }
 
@@ -74,8 +80,9 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         compiled_engine->instance_->SetCommandQueue(stream.stream());
     }
 
-    compiled_engine->instance_->Reshape(inputs_shape_map);
-
+    ret = compiled_engine->instance_->Reshape(inputs_shape_map);
+    TORCH_CHECK_THROW_ERROR(ret, "input shapes not in range [min, max] \n");
+    
     BlobMap input_blobs;
     BlobMap output_blobs;
     compiled_engine->instance_->GetAllInputBlobs(input_blobs);
@@ -92,8 +99,10 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         // set blob handle directly
         DeviceType device_type;
         BlobDesc blob_desc;
-        ConvertToDeviceType(device_type, inputs[i].device());
-        GetBlobDescFromTensor(blob_desc, inputs[i]);
+        ret = ConvertToDeviceType(device_type, inputs[i].device());
+        TORCH_CHECK_THROW_ERROR(ret, "ConvertToDeviceType ERROR \n");
+        ret = GetBlobDescFromTensor(blob_desc, inputs[i]);
+        TORCH_CHECK_THROW_ERROR(ret, "GetBlobDescFromTensor ERROR \n");
         auto contig_input = inputs[i].contiguous();
         // extend the lifetime of contig tensors
         contig_inputs.emplace_back(contig_input);
@@ -111,9 +120,11 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         // output blob data type is consistent with the input tensor, no need to convert tensor type
         auto desc = output_blobs[output_names[i]]->GetBlobDesc();
         c10::Device device(c10::kCPU);
-        ConvertToTorchDevice(device, desc.device_type);
+        ret = ConvertToTorchDevice(device, desc.device_type);
+        TORCH_CHECK_THROW_ERROR(ret, "ConvertToTorchDevice ERROR \n");
         at::ScalarType scalar_type;
-        ConvertToTorchDataType(scalar_type, desc.data_type);
+        ret = ConvertToTorchDataType(scalar_type, desc.data_type);
+        TORCH_CHECK_THROW_ERROR(ret, "ConvertToTorchDataType ERROR \n");
         outputs[i] = std::move(at::empty(ConvertDimsToIntArrayRef(desc.dims), {device.type()}).to(scalar_type).contiguous());
 
         BlobHandle handle;
@@ -125,7 +136,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     auto desc = output_blobs[output_names[0]]->GetBlobDesc();
     size_t shared_memory_size = 0;
     c10::Device device(c10::kCUDA);
-    ConvertToTorchDevice(device, desc.device_type);
+    ret = ConvertToTorchDevice(device, desc.device_type);
+    TORCH_CHECK_THROW_ERROR(ret, "ConvertToTorchDevice ERROR \n");
     compiled_engine->instance_->GetForwardMemorySize(shared_memory_size);
     c10::TensorOptions tensor_options;
     // use int8 tensor not aligned to 256 bytes, invalid for context memmory
@@ -135,7 +147,8 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     compiled_engine->instance_->SetForwardMemory(reinterpret_cast<void*>(forward_tensor->data_ptr<float>()));
 
     // use torch memory management
-    compiled_engine->instance_->Forward();
+    ret = compiled_engine->instance_->Forward();
+    TORCH_CHECK_THROW_ERROR(ret, "compiled_engine forward ERROR \n");
 
     return outputs;
 }
