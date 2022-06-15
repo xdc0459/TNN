@@ -110,10 +110,11 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         contig_inputs.emplace_back(contig_input);
 
         BlobHandle handle;
-        if (contig_input.data_ptr() != nullptr)
+        if (contig_input.data_ptr() != nullptr) {
             handle.base = contig_input.data_ptr();
-        else
+        } else {
             handle.base = (void*)1;
+        }
         input_blobs[input_names[i]]->SetHandle(handle);
         input_blobs[input_names[i]]->SetBlobDesc(blob_desc);
 
@@ -138,10 +139,11 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         outputs[i] = std::move(at::empty(ConvertDimsToIntArrayRef(desc.dims), {device.type()}).to(scalar_type).contiguous());
 
         BlobHandle handle;
-        if (outputs[i].data_ptr() != nullptr)
+        if (outputs[i].data_ptr() != nullptr) {
             handle.base = outputs[i].data_ptr();
-        else
+        } else {
             handle.base = (void*)1;
+        }
         output_blobs[output_names[i]]->SetHandle(handle);
         // DumpDeviceBlob(output_blobs[output_names[i]], cmd_queue, "tnn-output-"+output_names[i]);
     }
