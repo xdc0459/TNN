@@ -38,19 +38,21 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
     auto input_names  = compiled_engine->input_names;
     auto output_names = compiled_engine->output_names;
     InputShapesMap inputs_shape_map;
-    InputDataTypeMap inputs_data_type_map;
-
     int input_idx = 0;
     for (auto &input : inputs) {
-        inputs_shape_map[input_names[input_idx]] = util::toDims(input.sizes());
-        BlobDesc blob_desc;
-        ret = GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
-        TORCH_CHECK_THROW_ERROR(ret, "GetBlobDescFromTensor ERROR \n");
-        // binding input data type
-        inputs_data_type_map[input_names[input_idx++]] = blob_desc.data_type;
+        inputs_shape_map[input_names[input_idx++]] = util::toDims(input.sizes());
     }
 
     if (!compiled_engine->is_init_) {
+        int input_idx = 0;
+        InputDataTypeMap inputs_data_type_map;
+        for (auto &input : inputs) {
+            BlobDesc blob_desc;
+            ret = GetBlobDescFromTensor(blob_desc, inputs[input_idx]);
+            TORCH_CHECK_THROW_ERROR(ret, "GetBlobDescFromTensor ERROR \n");
+            // binding input data type
+            inputs_data_type_map[input_names[input_idx++]] = blob_desc.data_type;
+        }
         auto interpreter = dynamic_cast<ModelInterpreter *>(compiled_engine->interpreter_.get());
         interpreter->GetNetStructure()->inputs_shape_map = inputs_shape_map;
         interpreter->GetNetStructure()->input_data_type_map = inputs_data_type_map;
@@ -108,7 +110,10 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         contig_inputs.emplace_back(contig_input);
 
         BlobHandle handle;
-        handle.base = contig_input.data_ptr();
+        if (contig_input.data_ptr() != nullptr)
+            handle.base = contig_input.data_ptr();
+        else
+            handle.base = (void*)1;
         input_blobs[input_names[i]]->SetHandle(handle);
         input_blobs[input_names[i]]->SetBlobDesc(blob_desc);
 
@@ -123,12 +128,20 @@ std::vector<at::Tensor> execute_engine(std::vector<at::Tensor> inputs,
         ret = ConvertToTorchDevice(device, desc.device_type);
         TORCH_CHECK_THROW_ERROR(ret, "ConvertToTorchDevice ERROR \n");
         at::ScalarType scalar_type;
+        // TODO: Peng, TIACC now only support Float output
+        // When plugin is the last layer of sub graph, plugin maybe change output blob data_type to half,
+        // reset the date_type here.
+        if (desc.data_type == DATA_TYPE_HALF)
+            desc.data_type = DATA_TYPE_FLOAT;
         ret = ConvertToTorchDataType(scalar_type, desc.data_type);
         TORCH_CHECK_THROW_ERROR(ret, "ConvertToTorchDataType ERROR \n");
         outputs[i] = std::move(at::empty(ConvertDimsToIntArrayRef(desc.dims), {device.type()}).to(scalar_type).contiguous());
 
         BlobHandle handle;
-        handle.base = outputs[i].data_ptr();;
+        if (outputs[i].data_ptr() != nullptr)
+            handle.base = outputs[i].data_ptr();
+        else
+            handle.base = (void*)1;
         output_blobs[output_names[i]]->SetHandle(handle);
         // DumpDeviceBlob(output_blobs[output_names[i]], cmd_queue, "tnn-output-"+output_names[i]);
     }

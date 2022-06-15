@@ -35,8 +35,11 @@ Status MultidirBroadcastLayer::InferOutputDataType() {
     bool inputs_contains_bfp16 = false;
     bool inputs_contains_int32 = false;
 
-    auto layer_res = dynamic_cast<EltwiseLayerResource *>(resource_);
-    if (layer_res) {
+    if (input_blobs_.size()==1) {
+        auto layer_res = dynamic_cast<EltwiseLayerResource *>(resource_);
+        if (!layer_res) {
+            return Status(TNNERR_LAYER_ERR, "Error: layer resource missing when Binary OP has only 1 input.");
+        }
         DataType res_dtype = layer_res->element_handle.GetDataType();
         inputs_contains_float |= (res_dtype==DATA_TYPE_FLOAT);
         inputs_contains_half  |= (res_dtype==DATA_TYPE_HALF);
