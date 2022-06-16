@@ -37,6 +37,7 @@ Status CudaConvLayerAcc::Init(Context *context, LayerParam *param, LayerResource
     DimsVector output_dims = outputs[0]->GetBlobDesc().dims;
 
     if (input_dims.size() == 0 || output_dims.size() == 0) {
+        LOGE("Conv layer acc input_dims or output_dims is 0 error\n");
         return TNNERR_LAYER_ERR;
     }
 
@@ -50,10 +51,6 @@ Status CudaConvLayerAcc::Init(Context *context, LayerParam *param, LayerResource
         !((conv_param->kernels[1] == 7 && conv_param->kernels[0] == 7) ||
           (conv_param->kernels[1] == 41 && conv_param->kernels[0] == 1) ||
           (conv_param->kernels[1] == 5 && conv_param->kernels[0] == 1))) return TNN_OK;
-
-    if (input_dims.size() == 0 || output_dims.size() == 0) {
-        return TNNERR_LAYER_ERR;
-    }
 
     CUDNN_CHECK(cudnnCreateTensorDescriptor(&bottom_desc_));
     CUDNN_CHECK(cudnnCreateTensorDescriptor(&top_desc_));
