@@ -29,9 +29,13 @@ ILayer* FlattenTorchTRTLayerBuilder::AddToNetwork(INetworkDefinition* network) {
 
     ShapeTensor in_dims = shapeOf(*tensor);
     ShapeTensor out_dims;
-    ///////////////////////////
-    //std::cout << "[FlattenTorch AddToNet], start_dim = " << start_dim << ", end_dim = " << end_dim << " ===" << std::endl;
-    ///////////////////////////
+    
+    if (start_dim == end_dim) {
+        // Meaningless Flatten, do nothing.
+        ILayer* identity_layer = network->addIdentity(*tensor);
+        return identity_layer;
+    }
+    
     if (start_dim > 0) {
         std::vector<int> d0_indices;
         for (int i=0; i<start_dim; i++) {
