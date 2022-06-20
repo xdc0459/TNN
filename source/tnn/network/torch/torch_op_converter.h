@@ -14,6 +14,7 @@
 #include "tnn/layer/base_layer.h"
 
 #include "tnn/network/torch/segment.h"
+#include "tnn/network/torch/torch_macro.h"
 #include "tnn/network/torch/torch_utils.h"
 #include "tnn/interpreter/default_model_interpreter.h"
 #include "tnn/utils/data_type_utils.h"

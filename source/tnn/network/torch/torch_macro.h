@@ -17,7 +17,11 @@
 
 #include "tnn/core/status.h"
 
+#include <torch/csrc/api/include/torch/version.h>
+
 namespace TNN_NS {
+
+#define TNN_INCLUDE_TORCH_VERSION (10000*TORCH_VERSION_MAJOR+100*TORCH_VERSION_MINOR+TORCH_VERSION_PATCH)
 
 #define TORCH_THROW_ERROR(msg)        \
     std::stringstream ss{};           \

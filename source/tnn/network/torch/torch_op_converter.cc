@@ -835,12 +835,16 @@ public:
                 layer_info->type_str = "not";
                 break;
             case at::aten::relu:
+#if TNN_INCLUDE_TORCH_VERSION >= 10900
             case at::aten::relu_:
+#endif
                 layer_info->type     = LAYER_RELU;
                 layer_info->type_str = "Relu";
                 break;
             case at::aten::sigmoid:
+#if TNN_INCLUDE_TORCH_VERSION >= 10900
             case at::aten::sigmoid_:
+#endif
                 layer_info->type     = LAYER_SIGMOID;
                 layer_info->type_str = "Sigmoid";
                 break;
@@ -3395,14 +3399,16 @@ REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, log)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, neg)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, __not__)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, relu)
-REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, relu_)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, sigmoid)
-REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, sigmoid_)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, sign)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, sin)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, sqrt)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, tan)
 REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, tanh)
+#if TNN_INCLUDE_TORCH_VERSION >= 10900
+REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, relu_)
+REGISTER_TORCH_OP_CONVERTER(Elemwise, aten, sigmoid_)
+#endif
 REGISTER_TORCH_OP_CONVERTER(Expand, aten, expand)
 REGISTER_TORCH_OP_CONVERTER(Expandas, aten, expand_as)
 REGISTER_TORCH_OP_CONVERTER(Flatten, aten, flatten)
