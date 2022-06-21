@@ -72,7 +72,7 @@ c10::intrusive_ptr<runtime::TNNEngine> ConvertBlockToInstance(partitioning::Segm
         instance_ptr->output_names.push_back(output->debugName());
     }
 
-    TNNOptPass(net_structure, net_resource);
+    TNNOptPass(g, net_structure, net_resource);
 
     instance_ptr->interpreter_ = ctx->get_interpreter();
     instance_ptr->network_config_ = network_config;

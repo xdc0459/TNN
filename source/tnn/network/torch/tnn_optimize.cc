@@ -88,7 +88,28 @@ void RemoveNormClampminExpandasDiv(NetStructure* net_structure, NetResource* net
     net_structure->layers = layers_fused;
 }
 
-void TNNOptPass(NetStructure* net_structure, NetResource* net_resource) {
+void ReplaceContiguous(std::shared_ptr<torch::jit::Graph>& graph,  NetStructure* net_structure) {
+    std::map<std::string, std::string> replace_name;
+    for (auto &output : graph->outputs()) {
+        if(output->node()->kind() ==at::aten::contiguous) {
+            auto output_name = output->debugName(); 
+            auto input_name = output->node()->input(0)->debugName();
+            replace_name[input_name] = output_name;
+        }
+    }
+    for(auto layer : net_structure->layers) {
+        std::vector<std::string>& outputs = layer->outputs;
+        for(int i = 0; i < outputs.size(); ++i) {
+            auto output_name = outputs[i];
+            if(replace_name.count(output_name) > 0) {
+                outputs[i] = replace_name[output_name];
+            }
+        }
+    }
+}
+
+void TNNOptPass(std::shared_ptr<torch::jit::Graph>& graph, NetStructure* net_structure, NetResource* net_resource) {
+    ReplaceContiguous(graph, net_structure);
     RemoveClone(net_structure, net_resource);
     // RemoveSingleConcat(net_structure, net_resource);
     RemoveNormClampminExpandasDiv(net_structure, net_resource);
