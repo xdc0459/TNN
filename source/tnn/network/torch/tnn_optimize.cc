@@ -98,11 +98,19 @@ void ReplaceContiguous(std::shared_ptr<torch::jit::Graph>& graph,  NetStructure*
         }
     }
     for(auto layer : net_structure->layers) {
-        std::vector<std::string>& outputs = layer->outputs;
+    	std::vector<std::string>& inputs = layer->inputs;
+        for(int i = 0; i < inputs.size(); ++i) {
+            auto name = inputs[i];
+            if(replace_name.count(name) > 0) {
+                inputs[i] = replace_name[name];
+            }
+        }
+
+    	std::vector<std::string>& outputs = layer->outputs;
         for(int i = 0; i < outputs.size(); ++i) {
-            auto output_name = outputs[i];
-            if(replace_name.count(output_name) > 0) {
-                outputs[i] = replace_name[output_name];
+            auto name = outputs[i];
+            if(replace_name.count(name) > 0) {
+                outputs[i] = replace_name[name];
             }
         }
     }
