@@ -18,11 +18,11 @@
 namespace TNN_NS {
 
 __device__ int get_start_index(int a, int b, int c) {
-    return (int)floorf((float)(a * c) / b);
+    return (int)floor((double)(a * c) / b);
 }
 
 __device__ int get_end_index(int a, int b, int c) {
-    return (int)ceilf((float)((a + 1) * c) / b);
+    return (int)ceil((double)((a + 1) * c) / b);
 }
 
 template<int THREAD_PER_BLOCK>
